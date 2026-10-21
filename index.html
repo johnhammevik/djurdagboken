@@ -250,19 +250,6 @@ label {
       message.textContent = text;
     }
 
-    function showUser(user) {
-      document.getElementById("auth-section")
-        .hidden = Boolean(user);
-
-      document.getElementById("app-section")
-        .hidden = !user;
-
-      if (user) {
-        document.getElementById("welcome")
-          .textContent = "Inloggad som: " + user.email;
-      }
-    }
-
 
     
 // ===== DJURDAGBOKEN: DJURPROFILER =====
@@ -484,6 +471,17 @@ function showUser(user) {
     petList.replaceChildren();
   }
 }
+
+    
+  // Visa användaren när sidan öppnas
+  showUser(user);
+
+  // Uppdatera sidan vid inloggning och utloggning
+  supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      showUser(session?.user ?? null);
+    }
+  );
 
   </script>
 
