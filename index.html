@@ -121,6 +121,35 @@ label {
   font-size: 13px;
 }
 
+    
+/* Djurdagboken 3.0 */
+
+textarea {
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  border: 1px solid #d4ddd5;
+  border-radius: 10px;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.open-profile {
+  width: auto;
+  padding: 9px 12px;
+  margin-top: 8px;
+  font-size: 14px;
+  background: #e5eee7;
+  color: #263b32;
+}
+
+#profile-summary {
+  color: #68776e;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e7e0;
+}
+
   </style>
 </head>
 
@@ -211,6 +240,57 @@ label {
   <button id="logout" class="secondary">
     Logga ut
   </button>
+
+</section>
+
+    
+<!-- DJURDAGBOKEN 3.0: EGEN DJURPROFIL -->
+
+<section id="profile-section" class="panel" hidden>
+
+  <button id="back-to-list"
+    class="secondary" type="button">
+    ← Till mina djur
+  </button>
+
+  <h2 id="profile-name"></h2>
+  <p id="profile-summary"></p>
+
+  <h3>Om mitt djur</h3>
+
+  <form id="profile-form">
+
+    <label for="profile-breed">Ras</label>
+    <input
+      type="text"
+      id="profile-breed"
+      maxlength="80"
+      placeholder="Exempelvis Huskatt"
+    >
+
+    <label for="profile-sex">Kön</label>
+    <select id="profile-sex">
+      <option value="">Välj kön</option>
+      <option value="Hane">Hane</option>
+      <option value="Hona">Hona</option>
+      <option value="Okänt">Okänt</option>
+    </select>
+
+    <label for="profile-description">
+      Beskrivning
+    </label>
+    <textarea
+      id="profile-description"
+      rows="5"
+      maxlength="1000"
+      placeholder="Berätta om ditt djur..."
+    ></textarea>
+
+    <button type="submit">
+      Spara profil
+    </button>
+
+  </form>
 
 </section>
 
@@ -316,6 +396,21 @@ async function loadPets() {
 
     info.append(name, details);
 
+    
+// Knapp för att öppna djurets profil
+const viewButton = document.createElement("button");
+
+viewButton.type = "button";
+viewButton.className = "open-profile";
+viewButton.textContent = "Visa profil →";
+
+viewButton.addEventListener("click", () => {
+  openPetProfile(pet.id);
+});
+
+info.append(viewButton);
+
+
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.className = "delete-pet";
@@ -396,6 +491,137 @@ petForm.addEventListener("submit", async (event) => {
   }
 });
 
+    
+// ===== DJURDAGBOKEN 3.0 =====
+
+const profileSection =
+  document.getElementById("profile-section");
+
+const appSection =
+  document.getElementById("app-section");
+
+const profileForm =
+  document.getElementById("profile-form");
+
+let openPetId = null;
+
+// Öppna ett djurs profil
+async function openPetProfile(petId) {
+  const userId = shownUserId;
+  if (!userId) return;
+
+  showMessage("Öppnar djurprofil...");
+
+  const { data: pet, error } = await supabase
+    .from("pets")
+    .select(
+      "id, name, species, birth_date, breed, sex, description"
+    )
+    .eq("id", petId)
+    .eq("user_id", userId)
+    .single();
+
+  if (shownUserId !== userId) return;
+
+  if (error) {
+    showMessage("Kunde inte öppna: " + error.message);
+    return;
+  }
+
+  openPetId = pet.id;
+
+  document.getElementById("profile-name")
+    .textContent = "🐾 " + pet.name;
+
+  document.getElementById("profile-summary")
+    .textContent = pet.species +
+      (pet.birth_date
+        ? " · Född " + pet.birth_date
+        : "");
+
+  document.getElementById("profile-breed")
+    .value = pet.breed || "";
+
+  document.getElementById("profile-sex")
+    .value = pet.sex || "";
+
+  document.getElementById("profile-description")
+    .value = pet.description || "";
+
+  appSection.hidden = true;
+  profileSection.hidden = false;
+
+  showMessage("");
+}
+
+// Gå tillbaka till djurlistan
+document.getElementById("back-to-list")
+  .addEventListener("click", async () => {
+
+    profileSection.hidden = true;
+    appSection.hidden = false;
+    openPetId = null;
+
+    showMessage("");
+    await loadPets();
+  });
+
+// Spara profilinformationen
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const petId = openPetId;
+  const userId = shownUserId;
+
+  if (!petId || !userId) return;
+
+  const saveButton = profileForm.querySelector(
+    'button[type="submit"]'
+  );
+
+  saveButton.disabled = true;
+  showMessage("Sparar profilen...");
+
+  const breed =
+    document.getElementById("profile-breed")
+      .value.trim() || null;
+
+  const sex =
+    document.getElementById("profile-sex")
+      .value || null;
+
+  const description =
+    document.getElementById("profile-description")
+      .value.trim() || null;
+
+  try {
+    const { error } = await supabase
+      .from("pets")
+      .update({
+        breed: breed,
+        sex: sex,
+        description: description
+      })
+      .eq("id", petId)
+      .eq("user_id", userId)
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    showMessage("Profilen är sparad! ✅");
+
+  } catch (error) {
+    showMessage(
+      "Kunde inte spara: " + error.message
+    );
+
+  } finally {
+    saveButton.disabled = false;
+  }
+});
+    
+    
     // Logga in
     authForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -454,6 +680,11 @@ petForm.addEventListener("submit", async (event) => {
     
 function showUser(user) {
   shownUserId = user?.id ?? null;
+
+  if (!user) {
+    profileSection.hidden = true;
+    openPetId = null;
+  }
 
   document.getElementById("auth-section")
     .hidden = Boolean(user);
