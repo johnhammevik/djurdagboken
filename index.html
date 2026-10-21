@@ -150,6 +150,221 @@ textarea {
   border-bottom: 1px solid #e0e7e0;
 }
 
+    
+/* =================================
+   DJURDAGBOKEN 4.0 - NY DESIGN
+================================= */
+
+body {
+  background: #f3f6f1;
+  color: #283d32;
+  line-height: 1.5;
+}
+
+header {
+  background: linear-gradient(
+    135deg,
+    #285c43,
+    #579772
+  );
+  padding: 38px 16px 52px;
+  border-radius: 0 0 28px 28px;
+}
+
+header h1 {
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -1px;
+}
+
+header p {
+  opacity: 0.9;
+}
+
+main {
+  max-width: 980px;
+  margin: -24px auto 45px;
+  position: relative;
+  padding: 0 16px;
+}
+
+.panel {
+  border-radius: 24px;
+  border: 1px solid #e2ebe3;
+  padding: 24px;
+  box-shadow: 0 12px 32px #183a2412;
+}
+
+#auth-section {
+  max-width: 480px;
+  margin: auto;
+}
+
+#profile-section {
+  max-width: 680px;
+  margin: auto;
+}
+
+h2, h3 {
+  color: #285c43;
+}
+
+button {
+  border-radius: 12px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+button:hover {
+  filter: brightness(0.96);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #579772;
+  outline-offset: 1px;
+}
+
+/* Formulär */
+
+#pet-form {
+  background: #f5faf5;
+  padding: 20px;
+  border: 1px solid #e0e9df;
+  border-radius: 18px;
+}
+
+/* Djurlista */
+
+#pet-list {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(230px, 1fr)
+  );
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.pet-card {
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0;
+  padding: 18px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #e0e9df;
+  box-shadow: 0 4px 14px #00000008;
+}
+
+.pet-avatar {
+  display: grid;
+  place-items: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 20px;
+  background: #e7f0e6;
+  overflow: hidden;
+  font-size: 45px;
+}
+
+.pet-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pet-info {
+  width: 100%;
+}
+
+.pet-info strong {
+  font-size: 21px;
+}
+
+.open-profile {
+  width: 100%;
+  background: #e5f0e7;
+  color: #285c43;
+}
+
+.delete-pet {
+  align-self: flex-end;
+  margin-top: 10px;
+}
+
+/* Profilbilder */
+
+.photo-editor {
+  text-align: center;
+  background: #f5faf5;
+  padding: 22px;
+  border-radius: 18px;
+  margin: 20px 0;
+  border: 1px solid #e1ece1;
+}
+
+.profile-photo-avatar {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: #deeadf;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 60px;
+  border: 5px solid white;
+  box-shadow: 0 5px 18px #00000015;
+}
+
+.profile-photo-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-editor label {
+  margin-bottom: 10px;
+}
+
+.photo-hint {
+  font-size: 12px;
+  color: #6c7b70;
+}
+
+/* Mobilanpassning */
+
+@media (max-width: 600px) {
+  main {
+    margin-top: -20px;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+
+  #pet-list {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-card {
+    padding: 16px;
+  }
+
+  .profile-photo-avatar {
+    width: 130px;
+    height: 130px;
+  }
+}
+
   </style>
 </head>
 
@@ -256,6 +471,36 @@ textarea {
   <h2 id="profile-name"></h2>
   <p id="profile-summary"></p>
 
+  
+<!-- DJURDAGBOKEN 4.0: PROFILBILD -->
+
+<div class="photo-editor">
+
+  <div
+    id="profile-photo-preview"
+    class="profile-photo-avatar"
+  >🐾</div>
+
+  <label for="profile-photo">
+    Välj en profilbild
+  </label>
+
+  <input
+    type="file"
+    id="profile-photo"
+    accept="image/jpeg,image/png,image/webp"
+  >
+
+  <button type="button" id="upload-photo">
+    📷 Spara profilbild
+  </button>
+
+  <p class="photo-hint">
+    JPG, PNG eller WebP. Max 5 MB.
+  </p>
+
+</div>
+
   <h3>Om mitt djur</h3>
 
   <form id="profile-form">
@@ -346,7 +591,7 @@ async function loadPets() {
 
   const { data, error } = await supabase
     .from("pets")
-    .select("id, name, species, birth_date")
+    .select("id, name, species, birth_date, photo_path")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -383,6 +628,12 @@ async function loadPets() {
     };
 
     avatar.textContent = emojis[pet.species] || "🐾";
+    
+showPetPhoto(
+  avatar,
+  pet.photo_path,
+  emojis[pet.species] || "🐾"
+);
 
     const info = document.createElement("div");
     info.className = "pet-info";
@@ -492,6 +743,47 @@ petForm.addEventListener("submit", async (event) => {
 });
 
     
+// ===== DJURDAGBOKEN 4.0: VISA BILDER =====
+
+async function showPetPhoto(holder, path, emoji = "🐾") {
+  const userId = shownUserId;
+
+  holder.dataset.photoPath = path || "";
+  holder.textContent = emoji;
+
+  if (!path || !userId) return;
+
+  // Skapa en tillfällig bildadress
+  const { data, error } = await supabase.storage
+    .from("pet-photos")
+    .createSignedUrl(path, 3600);
+
+  if (
+    error ||
+    !data?.signedUrl ||
+    shownUserId !== userId ||
+    holder.dataset.photoPath !== path ||
+    !holder.isConnected
+  ) {
+    if (error) console.error("Bildfel:", error.message);
+    return;
+  }
+
+  const img = document.createElement("img");
+  img.alt = "Djurets profilbild";
+  img.loading = "lazy";
+
+  img.onerror = () => {
+    if (holder.dataset.photoPath === path) {
+      holder.textContent = emoji;
+    }
+  };
+
+  img.src = data.signedUrl;
+  holder.replaceChildren(img);
+}
+
+    
 // ===== DJURDAGBOKEN 3.0 =====
 
 const profileSection =
@@ -515,8 +807,8 @@ async function openPetProfile(petId) {
   const { data: pet, error } = await supabase
     .from("pets")
     .select(
-      "id, name, species, birth_date, breed, sex, description"
-    )
+  "id, name, species, birth_date, breed, sex, description, photo_path"
+)
     .eq("id", petId)
     .eq("user_id", userId)
     .single();
@@ -550,6 +842,13 @@ async function openPetProfile(petId) {
 
   appSection.hidden = true;
   profileSection.hidden = false;
+
+showPetPhoto(
+  document.getElementById("profile-photo-preview"),
+  pet.photo_path,
+  "🐾"
+);
+
 
   showMessage("");
 }
@@ -620,7 +919,106 @@ profileForm.addEventListener("submit", async (event) => {
     saveButton.disabled = false;
   }
 });
+
     
+// ===== LADDA UPP DJURETS BILD =====
+
+document.getElementById("upload-photo")
+  .addEventListener("click", async () => {
+
+    const input =
+      document.getElementById("profile-photo");
+
+    const file = input.files[0];
+    const petId = openPetId;
+    const userId = shownUserId;
+
+    if (!file) {
+      showMessage("Välj en bild först.");
+      return;
+    }
+
+    if (!petId || !userId) {
+      showMessage("Öppna en djurprofil först.");
+      return;
+    }
+
+    // Tillåt bara vanliga bildformat
+    const extensions = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp"
+    };
+
+    const extension = extensions[file.type];
+
+    if (!extension) {
+      showMessage("Använd JPG, PNG eller WebP.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showMessage("Bilden får vara högst 5 MB.");
+      return;
+    }
+
+    const button =
+      document.getElementById("upload-photo");
+
+    button.disabled = true;
+    showMessage("Laddar upp bilden...");
+
+    // Varje bild får ett unikt filnamn
+    const path =
+      `${userId}/${petId}/${crypto.randomUUID()}.${extension}`;
+
+    try {
+      // 1. Ladda upp till privat bildlagring
+      const { error: uploadError } =
+        await supabase.storage
+          .from("pet-photos")
+          .upload(path, file, {
+            contentType: file.type,
+            upsert: false
+          });
+
+      if (uploadError) throw uploadError;
+
+      if (shownUserId !== userId || openPetId !== petId) {
+        throw new Error("Djurprofilen har ändrats.");
+      }
+
+      // 2. Koppla bilden till rätt djur
+      const { error: saveError } = await supabase
+        .from("pets")
+        .update({ photo_path: path })
+        .eq("id", petId)
+        .eq("user_id", userId)
+        .select("id")
+        .single();
+
+      if (saveError) throw saveError;
+
+      // 3. Visa den nya bilden
+      await showPetPhoto(
+        document.getElementById("profile-photo-preview"),
+        path,
+        "🐾"
+      );
+
+      input.value = "";
+      showMessage("Profilbilden är sparad! ✅");
+
+    } catch (error) {
+      showMessage(
+        "Kunde inte spara bilden: " + error.message
+      );
+
+    } finally {
+      button.disabled = false;
+    }
+  });
+
     
     // Logga in
     authForm.addEventListener("submit", async (event) => {
