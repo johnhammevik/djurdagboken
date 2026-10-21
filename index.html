@@ -982,7 +982,9 @@ document.getElementById("upload-photo")
             upsert: false
           });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+  throw new Error("STEG 1: " + uploadError.message);
+}
 
       if (shownUserId !== userId || openPetId !== petId) {
         throw new Error("Djurprofilen har ändrats.");
@@ -997,7 +999,9 @@ document.getElementById("upload-photo")
         .select("id")
         .single();
 
-      if (saveError) throw saveError;
+      if (saveError) {
+  throw new Error("STEG 2: " + saveError.message);
+}
 
       // 3. Visa den nya bilden
       await showPetPhoto(
