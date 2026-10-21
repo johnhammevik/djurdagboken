@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Djurdagboken</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f6f8f4;
+      color: #263b32;
+    }
+
+    header {
+      background: #37775a;
+      color: white;
+      text-align: center;
+      padding: 28px 16px;
+    }
+
+    header h1 { margin: 0 0 8px; }
+
+    main {
+      max-width: 460px;
+      margin: 35px auto;
+      padding: 0 16px;
+    }
+
+    .panel {
+      background: white;
+      padding: 26px;
+      border-radius: 18px;
+      box-shadow: 0 5px 22px #00000010;
+    }
+
+    h2 { margin-top: 0; }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      border: 1px solid #d4ddd5;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #37775a;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .secondary {
+      background: #e5eee7;
+      color: #263b32;
+    }
+
+    #message { line-height: 1.5; }
+
+    [hidden] { display: none !important; }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>🐾 Djurdagboken</h1>
+    <p>Allt om ditt husdjur på ett ställe</p>
+  </header>
+
+  <main>
+    <section id="auth-section" class="panel">
+      <h2>Välkommen!</h2>
+      <p>Logga in eller skapa ett konto.</p>
+
+      <form id="auth-form">
+        <input
+          id="email"
+          type="email"
+          placeholder="Din e-postadress"
+          autocomplete="email"
+          required
+        >
+
+        <input
+          id="password"
+          type="password"
+          placeholder="Lösenord"
+          autocomplete="current-password"
+          minlength="6"
+          required
+        >
+
+        <button type="submit">Logga in</button>
+
+        <button
+          id="register"
+          class="secondary"
+          type="button"
+        >
+          Skapa konto
+        </button>
+      </form>
+    </section>
+
+    <section id="app-section" class="panel" hidden>
+      <h2>🐶 Mina djur</h2>
+      <p id="welcome"></p>
+      <p>Här kommer dina djurprofiler att visas.</p>
+
+      <button id="logout">Logga ut</button>
+    </section>
+
+    <p id="message" role="status" aria-live="polite"></p>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      "https://esm.sh/@supabase/supabase-js@2";
+
+    // Dessa två värden lägger vi in i steg 5.
+    const supabaseUrl =
+      "https://DITT-PROJEKT.supabase.co";
+
+    const publishableKey =
+      "DIN-PUBLISHABLE-KEY";
+
+    const supabase = createClient(
+      supabaseUrl,
+      publishableKey
+    );
+
+    const authForm =
+      document.getElementById("auth-form");
+
+    const emailInput =
+      document.getElementById("email");
+
+    const passwordInput =
+      document.getElementById("password");
+
+    const message =
+      document.getElementById("message");
+
+    function showMessage(text) {
+      message.textContent = text;
+    }
+
+    function showUser(user) {
+      document.getElementById("auth-section")
+        .hidden = Boolean(user);
+
+      document.getElementById("app-section")
+        .hidden = !user;
+
+      if (user) {
+        document.getElementById("welcome")
+          .textContent = "Inloggad som: " + user.email;
+      }
+    }
+
+    // Logga in
+    authForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showMessage("Loggar in...");
+
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email: emailInput.value.trim(),
+          password: passwordInput.value
+        });
+
+      showMessage(error ? error.message : "Välkommen!");
+    });
+
+    // Registrera konto
+    document.getElementById("register")
+      .addEventListener("click", async () => {
+        if (!authForm.reportValidity()) return;
+
+        showMessage("Skapar konto...");
+
+        const { data, error } =
+          await supabase.auth.signUp({
+            email: emailInput.value.trim(),
+            password: passwordInput.value,
+            options: {
+              emailRedirectTo:
+                window.location.origin +
+                window.location.pathname
+            }
+          });
+
+        if (error) {
+          showMessage(error.message);
+        } else if (!data.session) {
+          showMessage(
+            "Kontrollera din e-post och bekräfta kontot."
+          );
+        } else {
+          showMessage("Kontot är skapat!");
+        }
+      });
+
+    // Logga ut
+    document.getElementById("logout")
+      .addEventListener("click", async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) showMessage(error.message);
+        else showMessage("Du är utloggad.");
+      });
+
+    // Kontrollera om användaren är inloggad
+    const { data: { user } } =
+      await supabase.auth.getUser();
+
+    showUser(user);
+
+    supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        showUser(session?.user ?? null);
+      }
+    );
+  </script>
+
+</body>
+</html>
