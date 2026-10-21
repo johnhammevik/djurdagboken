@@ -70,6 +70,57 @@
     #message { line-height: 1.5; }
 
     [hidden] { display: none !important; }
+    
+select {
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  border: 1px solid #d4ddd5;
+  border-radius: 10px;
+  background: white;
+  font-size: 16px;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+  font-weight: bold;
+}
+
+.pet-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin: 12px 0;
+  border: 1px solid #e0e7e0;
+  border-radius: 12px;
+}
+
+.pet-avatar {
+  font-size: 32px;
+}
+
+.pet-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pet-info small {
+  display: block;
+  margin-top: 5px;
+  color: #68776e;
+}
+
+.delete-pet {
+  width: auto;
+  margin: 0;
+  padding: 9px;
+  background: #f6e8e8;
+  color: #8f3333;
+  font-size: 13px;
+}
+
   </style>
 </head>
 
@@ -115,13 +166,54 @@
       </form>
     </section>
 
-    <section id="app-section" class="panel" hidden>
-      <h2>🐶 Mina djur</h2>
-      <p id="welcome"></p>
-      <p>Här kommer dina djurprofiler att visas.</p>
+    
+<section id="app-section" class="panel" hidden>
 
-      <button id="logout">Logga ut</button>
-    </section>
+  <h2>🐾 Mina djur</h2>
+  <p id="welcome"></p>
+
+  <h3>Lägg till ett djur</h3>
+
+  <form id="pet-form">
+
+    <label for="pet-name">Djurets namn</label>
+    <input
+      id="pet-name"
+      type="text"
+      placeholder="Exempelvis Ozzy"
+      maxlength="60"
+      required
+    >
+
+    <label for="pet-species">Djurart</label>
+    <select id="pet-species" required>
+      <option value="Katt">🐱 Katt</option>
+      <option value="Hund">🐶 Hund</option>
+      <option value="Kanin">🐰 Kanin</option>
+      <option value="Fågel">🐦 Fågel</option>
+      <option value="Annat">🐾 Annat djur</option>
+    </select>
+
+    <label for="pet-birth">
+      Födelsedatum (frivilligt)
+    </label>
+    <input id="pet-birth" type="date">
+
+    <button type="submit">
+      + Spara djur
+    </button>
+
+  </form>
+
+  <h3>Min djurfamilj</h3>
+  <div id="pet-list"></div>
+
+  <button id="logout" class="secondary">
+    Logga ut
+  </button>
+
+</section>
+
 
     <p id="message" role="status" aria-live="polite"></p>
   </main>
@@ -170,6 +262,152 @@
           .textContent = "Inloggad som: " + user.email;
       }
     }
+
+
+    
+// ===== DJURDAGBOKEN: DJURPROFILER =====
+
+const petForm = document.getElementById("pet-form");
+const petList = document.getElementById("pet-list");
+
+let shownUserId = null;
+
+// Hämta användarens djur
+async function loadPets() {
+  const userId = shownUserId;
+  if (!userId) return;
+
+  const { data, error } = await supabase
+    .from("pets")
+    .select("id, name, species, birth_date")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (shownUserId !== userId) return;
+
+  if (error) {
+    showMessage("Kunde inte hämta djuren: " + error.message);
+    return;
+  }
+
+  petList.replaceChildren();
+
+  if (data.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "Du har inte lagt till några djur ännu.";
+    petList.append(empty);
+    return;
+  }
+
+  // Skapa ett kort för varje sparat djur
+  data.forEach(pet => {
+    const card = document.createElement("div");
+    card.className = "pet-card";
+
+    const avatar = document.createElement("span");
+    avatar.className = "pet-avatar";
+
+    const emojis = {
+      "Katt": "🐱",
+      "Hund": "🐶",
+      "Kanin": "🐰",
+      "Fågel": "🐦",
+      "Annat": "🐾"
+    };
+
+    avatar.textContent = emojis[pet.species] || "🐾";
+
+    const info = document.createElement("div");
+    info.className = "pet-info";
+
+    const name = document.createElement("strong");
+    name.textContent = pet.name;
+
+    const details = document.createElement("small");
+    details.textContent = pet.species +
+      (pet.birth_date ? " · Född " + pet.birth_date : "");
+
+    info.append(name, details);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "delete-pet";
+    removeButton.textContent = "Ta bort";
+
+    removeButton.addEventListener("click", async () => {
+      if (!confirm("Vill du ta bort " + pet.name + "?")) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from("pets")
+        .delete()
+        .eq("id", pet.id)
+        .eq("user_id", userId);
+
+      if (error) {
+        showMessage("Fel: " + error.message);
+      } else {
+        showMessage(pet.name + " har tagits bort.");
+        await loadPets();
+      }
+    });
+
+    card.append(avatar, info, removeButton);
+    petList.append(card);
+  });
+}
+
+// Spara ett nytt djur
+petForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!shownUserId) return;
+
+  const name = document.getElementById("pet-name")
+    .value.trim();
+
+  const species = document.getElementById("pet-species")
+    .value;
+
+  const birthDate = document.getElementById("pet-birth")
+    .value || null;
+
+  if (!name) {
+    showMessage("Du måste ange djurets namn.");
+    return;
+  }
+
+  const saveButton = petForm.querySelector(
+    'button[type="submit"]'
+  );
+
+  saveButton.disabled = true;
+  showMessage("Sparar djuret...");
+
+  try {
+    const { error } = await supabase
+      .from("pets")
+      .insert({
+        name: name,
+        species: species,
+        birth_date: birthDate
+      });
+
+    if (error) throw error;
+
+    petForm.reset();
+    showMessage(name + " har sparats!");
+
+    await loadPets();
+
+  } catch (error) {
+    showMessage("Kunde inte spara: " + error.message);
+
+  } finally {
+    saveButton.disabled = false;
+  }
+});
 
     // Logga in
     authForm.addEventListener("submit", async (event) => {
@@ -226,13 +464,27 @@
     const { data: { user } } =
       await supabase.auth.getUser();
 
-    showUser(user);
+    
+function showUser(user) {
+  shownUserId = user?.id ?? null;
 
-    supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        showUser(session?.user ?? null);
-      }
-    );
+  document.getElementById("auth-section")
+    .hidden = Boolean(user);
+
+  document.getElementById("app-section")
+    .hidden = !user;
+
+  if (user) {
+    document.getElementById("welcome")
+      .textContent = "Inloggad som: " + user.email;
+
+    // Hämta djuren efter inloggningen
+    setTimeout(() => loadPets(), 0);
+  } else {
+    petList.replaceChildren();
+  }
+}
+
   </script>
 
 </body>
