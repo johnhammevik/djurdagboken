@@ -742,6 +742,494 @@ textarea:focus {
 .db54-delete-button:hover {
   background: #f3d4d4;
 }
+    
+/* ==========================================
+   DJURDAGBOKEN 6.0
+   NY SKANDINAVISK MOBILDESIGN
+========================================== */
+
+:root {
+  --green: #315f49;
+  --green-dark: #204633;
+  --green-soft: #e4eee5;
+  --background: #f4f5ef;
+  --white: #ffffff;
+  --text: #263c30;
+  --muted: #708075;
+  --border: #e3e9e1;
+  --shadow: 0 8px 30px rgba(33, 61, 42, 0.07);
+}
+
+/* HELA WEBBPLATSEN */
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Arial, sans-serif;
+  line-height: 1.55;
+}
+
+header {
+  background: linear-gradient(
+    135deg, #204633, #477e5c
+  );
+  padding: 35px 20px 65px;
+  border-radius: 0 0 32px 32px;
+  text-align: center;
+}
+
+header h1 {
+  font-size: clamp(28px, 5vw, 38px);
+  font-weight: 750;
+  letter-spacing: -1px;
+}
+
+header p {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+main {
+  width: 100%;
+  max-width: 1080px;
+  margin: -32px auto 50px;
+  padding: 0 16px;
+}
+
+.panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+h2 {
+  color: var(--green-dark);
+  font-size: 26px;
+  letter-spacing: -0.6px;
+}
+
+h3 {
+  color: var(--green-dark);
+  font-size: 19px;
+}
+
+/* KNAPPAR */
+
+button {
+  min-height: 44px;
+  border-radius: 13px;
+  background: var(--green);
+  color: white;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.2s;
+}
+
+button:hover {
+  filter: none;
+  background: var(--green-dark);
+}
+
+button:active {
+  transform: scale(0.99);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.secondary,
+#back-to-list {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+button.secondary:hover,
+#back-to-list:hover {
+  background: #d4e5d7;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #79b993;
+  outline-offset: 3px;
+}
+
+/* FORMULÄR */
+
+input:not([type="color"]),
+select,
+textarea {
+  background: #fbfcf9;
+  border: 1px solid #dbe5d9;
+  border-radius: 12px;
+  padding: 13px;
+  color: var(--text);
+  max-width: 100%;
+}
+
+label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green-dark);
+}
+
+#auth-section {
+  max-width: 470px;
+  margin: auto;
+}
+
+#pet-form {
+  background: #f6f9f4;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px;
+}
+
+/* MIN DJURFAMILJ */
+
+#app-section {
+  max-width: 1000px;
+  margin: auto;
+}
+
+#pet-list {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit, minmax(min(100%, 320px), 1fr)
+  );
+  gap: 16px;
+  margin: 18px 0 25px;
+}
+
+.pet-card {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  margin: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 5px 18px #203a2810;
+}
+
+.pet-avatar {
+  width: 94px;
+  height: 94px;
+  border-radius: 19px;
+  background: var(--green-soft);
+  overflow: hidden;
+}
+
+.pet-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pet-info {
+  width: 100%;
+  min-width: 0;
+}
+
+.pet-info strong {
+  font-size: 22px;
+  color: var(--green-dark);
+}
+
+.pet-info small {
+  color: var(--muted);
+}
+
+.open-profile {
+  width: 100%;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  border-radius: 10px;
+}
+
+.delete-pet {
+  grid-column: 1 / -1;
+  justify-self: end;
+  width: auto;
+  background: #f8e9e9;
+  color: #923f3f;
+}
+
+/* DJURETS EGEN PROFIL */
+
+#profile-section {
+  max-width: 880px;
+  margin: auto;
+}
+
+#back-to-list {
+  width: auto;
+  padding: 11px 17px;
+  margin-bottom: 24px;
+}
+
+#profile-name {
+  font-size: clamp(28px, 5vw, 36px);
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+#profile-summary {
+  text-align: center;
+  color: var(--muted);
+  border-bottom: none;
+}
+
+.photo-editor {
+  background: #f5f8f2;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px 20px;
+  margin: 20px 0;
+}
+
+.profile-photo-avatar {
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  border: 6px solid white;
+  box-shadow: 0 8px 25px #315f4920;
+  overflow: hidden;
+}
+
+.profile-photo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-editor input,
+.photo-editor button {
+  max-width: 370px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* KALENDERN */
+
+#db5-calendar {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  margin-top: 24px;
+  box-shadow: var(--shadow);
+}
+
+.db5-month-nav {
+  background: #f4f7f1;
+  border-radius: 16px;
+  padding: 10px;
+  margin: 20px 0 12px;
+}
+
+.db5-month-nav button {
+  width: 44px;
+  min-height: 44px;
+  background: white;
+  color: var(--green-dark);
+}
+
+.db5-month-nav strong {
+  font-size: 17px;
+  color: var(--green-dark);
+}
+
+.db5-weekdays,
+.db5-days {
+  grid-template-columns: repeat(
+    7, minmax(0, 1fr)
+  );
+  gap: 5px;
+}
+
+.db5-weekdays span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.db5-days button {
+  width: 100%;
+  min-height: 50px;
+  margin: 0;
+  background: #f8faf6;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.db5-days button:hover {
+  background: #eaf3e9;
+}
+
+.db5-days button.db5-selected {
+  background: #dcebdd;
+  border: 2px solid #4d9165;
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.db5-dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* KATEGORIER OCH FILTER */
+
+.db5-filters {
+  gap: 10px;
+}
+
+.db51-chip {
+  border-radius: 30px;
+  padding: 3px;
+  background: #f5f8f3;
+  border: 1px solid var(--border);
+}
+
+.db5-filters button {
+  border-radius: 30px;
+  min-height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.db51-edit-category {
+  border-radius: 50%;
+}
+
+.db5-filters button.db5-off {
+  opacity: 0.4;
+}
+
+/* HÄNDELSER */
+
+.db5-event-card {
+  background: #fafcf8;
+  border-radius: 16px;
+  padding: 17px;
+  border-left-width: 6px;
+  box-shadow: none;
+}
+
+.db52-upcoming-section {
+  background: #f3f7f1;
+  border-radius: 20px;
+  padding: 22px;
+  margin-top: 25px;
+}
+
+.db52-upcoming-card {
+  background: white;
+  border-radius: 14px;
+  padding: 15px;
+  box-shadow: 0 2px 10px #203a2808;
+}
+
+.db5-details {
+  background: #fbfcf9;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.db5-details summary {
+  color: var(--green-dark);
+  font-weight: 650;
+}
+
+/* FÄRGPALETT */
+
+.db52-swatch {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  border-radius: 50%;
+  border: 3px solid white;
+}
+
+/* MOBILANPASSNING */
+
+@media (max-width: 600px) {
+  header {
+    padding: 28px 15px 52px;
+  }
+
+  main {
+    padding: 0 12px;
+    margin-top: -22px;
+  }
+
+  .panel {
+    padding: 19px 15px;
+    border-radius: 20px;
+  }
+
+  #pet-list {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .pet-avatar {
+    width: 76px;
+    height: 76px;
+  }
+
+  .profile-photo-avatar {
+    width: 145px;
+    height: 145px;
+  }
+
+  #db5-calendar {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .db5-weekdays,
+  .db5-days {
+    gap: 3px;
+  }
+
+  .db5-days button {
+    min-height: 45px;
+    padding: 5px 1px;
+    font-size: 13px;
+  }
+
+  .db52-upcoming-section {
+    padding: 15px;
+  }
+
+  .db5-event-card {
+    padding: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}
 
   </style>
 </head>
