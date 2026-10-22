@@ -1231,6 +1231,83 @@ label {
   }
 }
 
+    
+/* DJURDAGBOKEN 6.0 - KAMERAKNAPP */
+
+.photo-editor {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 10px 0 20px;
+}
+
+/* Profilbildens placering */
+.db6-photo-wrap {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  margin: 0 auto;
+}
+
+.db6-photo-wrap .profile-photo-avatar {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+/* Den lilla kameraknappen */
+.photo-editor .db6-camera-button {
+  position: absolute;
+  bottom: 6px;
+  right: -8px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  width: 46px;
+  height: 46px;
+
+  border-radius: 50%;
+  border: 3px solid white;
+
+  background: #315f49;
+  color: white;
+
+  font-size: 21px;
+  cursor: pointer;
+
+  margin: 0;
+  padding: 0;
+
+  box-shadow: 0 4px 12px #00000025;
+}
+
+.photo-editor .db6-camera-button:hover {
+  background: #204633;
+}
+
+/* Göm filfältet visuellt */
+.photo-editor .db6-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Storlek på mobilen */
+@media (max-width: 600px) {
+  .db6-photo-wrap {
+    width: 145px;
+    height: 145px;
+  }
+}
+
   </style>
 </head>
 
@@ -1340,33 +1417,44 @@ label {
   
 <!-- DJURDAGBOKEN 4.0: PROFILBILD -->
 
+
+<!-- DJURDAGBOKEN 6.0 - PROFILBILD -->
+
 <div class="photo-editor">
 
-  <div
-    id="profile-photo-preview"
-    class="profile-photo-avatar"
-  >🐾</div>
+  <div class="db6-photo-wrap">
 
-  <label for="profile-photo">
-    Välj en profilbild
-  </label>
+    <div
+      id="profile-photo-preview"
+      class="profile-photo-avatar"
+    >🐾</div>
 
+    <!-- Kameraknappen -->
+    <label
+      for="profile-photo"
+      class="db6-camera-button"
+      title="Byt profilbild"
+      aria-label="Byt profilbild"
+    >📷</label>
+
+  </div>
+
+  <!-- Dolt filval -->
   <input
-    type="file"
     id="profile-photo"
+    type="file"
+    class="db6-file-input"
     accept="image/jpeg,image/png,image/webp"
   >
 
-  <button type="button" id="upload-photo">
-    📷 Spara profilbild
-  </button>
-
-  <p class="photo-hint">
-    JPG, PNG eller WebP. Max 5 MB.
-  </p>
+  <!-- Befintlig uppladdning behålls -->
+  <button
+    id="upload-photo"
+    type="button"
+    hidden
+  >Spara profilbild</button>
 
 </div>
-
 
 <!-- DJURDAGBOKEN 5.0: KALENDER -->
 
@@ -2107,10 +2195,29 @@ document.getElementById("upload-photo")
       );
 
     } finally {
+      input.value = "";
       button.disabled = false;
     }
   });
 
+    
+// DJURDAGBOKEN 6.0
+// Ladda upp automatiskt när en bild väljs
+
+document.getElementById("profile-photo")
+  .addEventListener("change", () => {
+
+    const input =
+      document.getElementById("profile-photo");
+
+    if (input.files.length > 0) {
+
+      // Använd den befintliga uppladdningen
+      document.getElementById("upload-photo")
+        .click();
+
+    }
+  });
     
 // ===== DJURDAGBOKEN 5.0: KALENDER =====
 
