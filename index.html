@@ -693,6 +693,42 @@ textarea:focus {
   font-weight: 600;
 }
 
+
+/* DJURDAGBOKEN 5.3 */
+
+.db53-delete-event {
+  display: inline-block;
+  width: auto;
+  background: #f9e7e7;
+  color: #9b3c3c;
+  padding: 9px 14px;
+  margin: 10px 0 0 8px;
+  font-size: 13px;
+  border-radius: 12px;
+}
+
+.db53-delete-event:hover {
+  background: #f4d5d5;
+}
+
+#db53-toggle-archive {
+  background: #edf1e9;
+  color: #4d624e;
+  margin-top: 16px;
+}
+
+#db53-toggle-archive:hover {
+  background: #e0e8db;
+}
+
+.db5-filters button.db5-off {
+  opacity: 0.45;
+}
+
+.db5-event-card {
+  margin-bottom: 14px;
+}
+    
   </style>
 </head>
 
@@ -901,6 +937,13 @@ textarea:focus {
       Spara ändringar
     </button>
 
+<button
+  id="db53-toggle-archive"
+  type="button"
+  class="secondary">
+  📦 Arkivera kategori
+</button>
+    
     <button id="db51-cancel-category"
             type="button"
             class="secondary">
@@ -1644,7 +1687,7 @@ const [categoryResult, eventResult, upcomingResult] =
     // Djurets kategorier
     supabase
       .from("pet_categories")
-      .select("id, name, color, icon")
+      .select("id, name, color, icon, archived")
       .eq("pet_id", petId)
       .eq("user_id", userId)
       .order("name"),
@@ -1791,14 +1834,23 @@ function db5Render() {
   );
 
   for (const category of db5.categories) {
-    categorySelect.add(
-      new Option(category.name, category.id)
-    );
+    
+const option = new Option(
+  category.name +
+    (category.archived ? " (arkiverad)" : ""),
+  category.id
+);
+
+option.disabled = category.archived;
+categorySelect.add(option);
 
     const filter = document.createElement("button");
     filter.type = "button";
-    filter.textContent =
-  (category.icon || "🐾") + " " + category.name;
+    
+filter.textContent =
+  (category.icon || "🐾") + " " +
+  category.name +
+  (category.archived ? " (arkiverad)" : "");
     filter.style.borderColor = category.color;
 
     if (db5.hiddenCategories.has(category.id)) {
@@ -1916,8 +1968,21 @@ editEvent.addEventListener("click", () => {
   db51EditEvent(event.id);
 });
 
-card.append(editEvent);
+// Skapa en raderingsknapp
+const deleteEvent = document.createElement("button");
+
+deleteEvent.type = "button";
+deleteEvent.className = "db53-delete-event";
+deleteEvent.textContent = "🗑️ Radera";
+
+deleteEvent.addEventListener("click", () => {
+  db53DeleteEvent(event.id, event.title);
+});
+
+// Visa båda knapparna på händelsen
+card.append(editEvent, deleteEvent);
 eventList.append(card);
+
   }
 }
 
@@ -1940,6 +2005,11 @@ function db51EditCategory(categoryId) {
   db5El("db51-category-name").value = category.name;
   db5El("db51-category-color").value = category.color;
   db5El("db52-edit-icon").value = category.icon || "🐾";
+  db5El("db53-toggle-archive").textContent =
+  category.archived
+    ? "↩️ Återaktivera kategori"
+    : "📦 Arkivera kategori";
+
 
   const editor = db5El("db51-category-editor");
   editor.hidden = false;
@@ -2165,7 +2235,134 @@ function db52RenderUpcoming() {
     container.append(card);
   }
 }
-  
+
+// ===== DJURDAGBOKEN 5.3: ARKIVERING =====
+
+db5El("db53-toggle-archive")
+  .addEventListener("click", async () => {
+
+    const categoryId = db51EditingCategoryId;
+    const petId = db5.petId;
+    const userId = shownUserId;
+
+    const category = db5.categories.find(
+      c => c.id === categoryId
+    );
+
+    if (!category || !petId || !userId) return;
+
+    const archive = !category.archived;
+
+    if (archive) {
+      const confirmed = confirm(
+        "Vill du arkivera kategorin " +
+        category.name + "?\n\n" +
+        "Alla tidigare händelser sparas."
+      );
+
+      if (!confirmed) return;
+    }
+
+    const button = db5El("db53-toggle-archive");
+    button.disabled = true;
+
+    try {
+      const { error } = await supabase
+        .from("pet_categories")
+        .update({ archived: archive })
+        .eq("id", categoryId)
+        .eq("pet_id", petId)
+        .eq("user_id", userId)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      if (
+        db5.petId !== petId ||
+        shownUserId !== userId
+      ) return;
+
+      db51CancelCategoryEdit();
+      db51CancelEventEdit();
+
+      await db5Load();
+
+      db5Status(
+        archive
+          ? "Kategorin är arkiverad. Historiken finns kvar! 📦"
+          : "Kategorin är återaktiverad! ✅"
+      );
+
+    } catch (error) {
+      db5Status(
+        "Kunde inte ändra arkivering: " +
+        error.message
+      );
+
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+
+// ===== DJURDAGBOKEN 5.3: RADERA HÄNDELSE =====
+
+async function db53DeleteEvent(eventId, eventTitle) {
+
+  const petId = db5.petId;
+  const userId = shownUserId;
+
+  if (!petId || !userId) return;
+
+  // Be om bekräftelse
+  const confirmed = confirm(
+    "Vill du verkligen radera händelsen:\n\n" +
+    eventTitle + "?\n\n" +
+    "Detta går inte att ångra."
+  );
+
+  if (!confirmed) return;
+
+  db5Status("Raderar händelsen...");
+
+  try {
+    // Radera endast denna händelse
+    const { error } = await supabase
+      .from("pet_events")
+      .delete()
+      .eq("id", eventId)
+      .eq("pet_id", petId)
+      .eq("user_id", userId)
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    if (
+      db5.petId !== petId ||
+      shownUserId !== userId
+    ) return;
+
+    // Stäng redigeringsläget om samma
+    // händelse höll på att redigeras
+    if (db51EditingEventId === eventId) {
+      db51CancelEventEdit();
+    }
+
+    // Ladda om kalendern och kommande händelser
+    await db5Load();
+
+    db5Status("Händelsen har raderats! ✅");
+
+  } catch (error) {
+    db5Status(
+      "Kunde inte radera händelsen: " +
+      error.message
+    );
+  }
+}
+    
 // Föregående månad
 db5El("db5-prev").addEventListener("click", () => {
   db5.month = new Date(
@@ -2251,10 +2448,22 @@ db5El("db5-event-form")
 
     if (!petId || !shownUserId || !title || !date) return;
 
-    if (!db5.categories.some(c => c.id === categoryId)) {
-      db5Status("Välj en kategori först.");
-      return;
-    }
+    const selectedCategory = db5.categories.find(
+  c => c.id === categoryId
+);
+
+const originalEvent = db5.events.find(
+  e => e.id === db51EditingEventId
+);
+
+if (
+  !selectedCategory ||
+  (selectedCategory.archived &&
+   originalEvent?.category_id !== categoryId)
+) {
+  db5Status("Välj en kategori först.");
+  return;
+}
 
     const button = event.target.querySelector(
       'button[type="submit"]'
