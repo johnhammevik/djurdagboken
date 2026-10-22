@@ -612,6 +612,87 @@ textarea:focus {
   background: #fafbf8;
 }
 
+    
+/* DJURDAGBOKEN 5.2 */
+
+/* Färdiga färgval */
+.db52-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+
+.db52-swatch {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #d5ddd5;
+}
+
+.db52-swatch:hover {
+  transform: scale(1.08);
+}
+
+/* Kommande händelser */
+.db52-upcoming-section {
+  margin-top: 25px;
+  padding: 18px;
+  background: #f3f7f0;
+  border-radius: 18px;
+}
+
+.db52-upcoming-section h3 {
+  margin-top: 0;
+}
+
+.db52-hint {
+  font-size: 13px;
+  color: #6e8071;
+}
+
+.db52-upcoming-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: white;
+  border-radius: 12px;
+  border-left: 5px solid #79a889;
+  padding: 13px;
+  margin-top: 10px;
+}
+
+.db52-upcoming-icon {
+  font-size: 24px;
+}
+
+.db52-upcoming-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.db52-upcoming-info strong {
+  display: block;
+}
+
+.db52-upcoming-info small {
+  color: #6e8071;
+}
+
+/* Lite mjukare kategoriknappar */
+.db51-chip {
+  border-radius: 30px;
+  background: #f5f7f3;
+  padding: 3px;
+}
+
+.db5-filters button {
+  font-weight: 600;
+}
+
   </style>
 </head>
 
@@ -798,6 +879,23 @@ textarea:focus {
     </label>
     <input id="db51-category-color"
            type="color">
+    
+<div class="db52-palette"
+     data-target="db51-category-color"></div>
+
+<label for="db52-edit-icon">Välj ikon</label>
+<select id="db52-edit-icon">
+  <option value="🐾">🐾 Tass</option>
+  <option value="🩺">🩺 Veterinär</option>
+  <option value="💊">💊 Medicin</option>
+  <option value="🍽️">🍽️ Mat</option>
+  <option value="⚖️">⚖️ Vikt</option>
+  <option value="✂️">✂️ Pälsvård</option>
+  <option value="📷">📷 Minnen</option>
+  <option value="❤️">❤️ Hälsa</option>
+  <option value="🏃">🏃 Aktivitet</option>
+  <option value="🦴">🦴 Övrigt</option>
+</select>
 
     <button type="submit">
       Spara ändringar
@@ -816,6 +914,17 @@ textarea:focus {
     Händelser
   </h4>
   <div id="db5-events"></div>
+  
+<!-- DJURDAGBOKEN 5.2: KOMMANDE HÄNDELSER -->
+
+<section class="db52-upcoming-section">
+  <h3>🗓️ Kommande händelser</h3>
+  <p class="db52-hint">
+    Nästa planerade aktiviteter för ditt djur
+  </p>
+
+  <div id="db52-upcoming"></div>
+</section>
 
   <details class="db5-details">
     <summary>🎨 Skapa egen kategori</summary>
@@ -840,6 +949,23 @@ textarea:focus {
         type="color"
         value="#79A889"
       >
+      
+<div class="db52-palette"
+     data-target="db5-category-color"></div>
+
+<label for="db52-new-icon">Välj ikon</label>
+<select id="db52-new-icon">
+  <option value="🐾">🐾 Tass</option>
+  <option value="🩺">🩺 Veterinär</option>
+  <option value="💊">💊 Medicin</option>
+  <option value="🍽️">🍽️ Mat</option>
+  <option value="⚖️">⚖️ Vikt</option>
+  <option value="✂️">✂️ Pälsvård</option>
+  <option value="📷">📷 Minnen</option>
+  <option value="❤️">❤️ Hälsa</option>
+  <option value="🏃">🏃 Aktivitet</option>
+  <option value="🦴">🦴 Övrigt</option>
+</select>
 
       <button type="submit">
         Spara kategori
@@ -1446,6 +1572,7 @@ const db5 = {
   selected: "",
   categories: [],
   events: [],
+  upcoming: [],
   hiddenCategories: new Set(),
   requestNumber: 0
 };
@@ -1503,25 +1630,47 @@ async function db5Load() {
     year, month,
     new Date(year, month + 1, 0).getDate()
   );
+const today = new Date();
 
-  const [categoryResult, eventResult] =
-    await Promise.all([
-      supabase
-        .from("pet_categories")
-        .select("id, name, color")
-        .eq("pet_id", petId)
-        .eq("user_id", userId)
-        .order("name"),
+const todayString = db5Date(
+  today.getFullYear(),
+  today.getMonth(),
+  today.getDate()
+);
+  
+const [categoryResult, eventResult, upcomingResult] =
+  await Promise.all([
 
-      supabase
-        .from("pet_events")
-        .select("id, title, event_date, notes, category_id")
-        .eq("pet_id", petId)
-        .eq("user_id", userId)
-        .gte("event_date", firstDay)
-        .lte("event_date", lastDay)
-        .order("event_date")
-    ]);
+    // Djurets kategorier
+    supabase
+      .from("pet_categories")
+      .select("id, name, color, icon")
+      .eq("pet_id", petId)
+      .eq("user_id", userId)
+      .order("name"),
+
+    // Händelser för kalenderns aktuella månad
+    supabase
+      .from("pet_events")
+      .select("id, title, event_date, notes, category_id")
+      .eq("pet_id", petId)
+      .eq("user_id", userId)
+      .gte("event_date", firstDay)
+      .lte("event_date", lastDay)
+      .order("event_date"),
+
+    // Kommande händelser, även i andra månader
+    supabase
+      .from("pet_events")
+      .select("id, title, event_date, category_id")
+      .eq("pet_id", petId)
+      .eq("user_id", userId)
+      .gte("event_date", todayString)
+      .order("event_date", { ascending: true })
+      .limit(100)
+
+  ]);
+
 
   if (
     request !== db5.requestNumber ||
@@ -1530,21 +1679,29 @@ async function db5Load() {
   ) return;
 
   if (categoryResult.error || eventResult.error) {
-    db5Status(
-      "Kunde inte hämta kalendern: " +
-      (categoryResult.error || eventResult.error).message
-    );
-    return;
-  }
+    const loadError =
+  categoryResult.error ||
+  eventResult.error ||
+  upcomingResult.error;
+
+if (loadError) {
+  db5Status(
+    "Kunde inte hämta kalendern: " +
+    loadError.message
+  );
+  return;
+}
 
   db5.categories = categoryResult.data;
   db5.events = eventResult.data;
+  db5.upcoming = upcomingResult.data;
 
   db5Render();
 }
 
 // Rita kalendern
 function db5Render() {
+  db52RenderUpcoming();
   const year = db5.month.getFullYear();
   const month = db5.month.getMonth();
 
@@ -1641,7 +1798,8 @@ function db5Render() {
 
     const filter = document.createElement("button");
     filter.type = "button";
-    filter.textContent = "● " + category.name;
+    filter.textContent =
+  (category.icon || "🐾") + " " + category.name;
     filter.style.borderColor = category.color;
 
     if (db5.hiddenCategories.has(category.id)) {
@@ -1737,7 +1895,8 @@ filters.append(chip);
 
     const categoryName = document.createElement("p");
     categoryName.textContent =
-      category?.name || "Utan kategori";
+  (category?.icon || "🐾") + " " +
+  (category?.name || "Utan kategori");
 
     card.append(heading, categoryName);
 
@@ -1781,6 +1940,7 @@ function db51EditCategory(categoryId) {
 
   db5El("db51-category-name").value = category.name;
   db5El("db51-category-color").value = category.color;
+  db5El("db52-edit-icon").value = category.icon || "🐾";
 
   const editor = db5El("db51-category-editor");
   editor.hidden = false;
@@ -1820,6 +1980,7 @@ db5El("db51-category-form")
       .value.trim();
 
     const color = db5El("db51-category-color").value;
+    const icon = db5El("db52-edit-icon").value;
 
     if (!name) return;
 
@@ -1832,7 +1993,7 @@ db5El("db51-category-form")
     try {
       const { error } = await supabase
         .from("pet_categories")
-        .update({ name, color })
+        .update({ name, color, icon })
         .eq("id", categoryId)
         .eq("pet_id", petId)
         .eq("user_id", userId)
@@ -1902,7 +2063,110 @@ function db51CancelEventEdit() {
 
 db5El("db51-cancel-event")
   .addEventListener("click", db51CancelEventEdit);
+
     
+// ===== DJURDAGBOKEN 5.2: FÄRGPALETT =====
+
+const db52Colors = [
+  "#E98E9F", // Rosa
+  "#9CC9E0", // Ljusblå
+  "#92B89A", // Grön
+  "#F0B779", // Orange
+  "#B7A1D5", // Lila
+  "#D9B69D"  // Beige
+];
+
+document.querySelectorAll(".db52-palette")
+  .forEach(palette => {
+
+    const colorInput = db5El(palette.dataset.target);
+
+    for (const color of db52Colors) {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.className = "db52-swatch";
+      button.style.backgroundColor = color;
+      button.title = "Välj färgen " + color;
+      button.setAttribute(
+        "aria-label",
+        "Välj färgen " + color
+      );
+
+      button.addEventListener("click", () => {
+        colorInput.value = color;
+        colorInput.dispatchEvent(new Event("input"));
+      });
+
+      palette.append(button);
+    }
+  });
+
+
+// ===== DJURDAGBOKEN 5.2: KOMMANDE HÄNDELSER =====
+
+function db52RenderUpcoming() {
+
+  const container = db5El("db52-upcoming");
+  container.replaceChildren();
+
+  // Filtrera bort dolda kategorier
+  const upcoming = db5.upcoming
+    .filter(item =>
+      !db5.hiddenCategories.has(item.category_id)
+    )
+    .slice(0, 5);
+
+  if (upcoming.length === 0) {
+    const empty = document.createElement("p");
+
+    empty.textContent =
+      "Inga kommande händelser i de valda kategorierna.";
+
+    container.append(empty);
+    return;
+  }
+
+  for (const item of upcoming) {
+    const category = db5.categories.find(
+      c => c.id === item.category_id
+    );
+
+    const card = document.createElement("div");
+    card.className = "db52-upcoming-card";
+    card.style.borderLeftColor =
+      category?.color || "#79a889";
+
+    const icon = document.createElement("span");
+    icon.className = "db52-upcoming-icon";
+    icon.textContent = category?.icon || "🐾";
+
+    const info = document.createElement("div");
+    info.className = "db52-upcoming-info";
+
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+
+    const date = document.createElement("small");
+
+    const formattedDate = new Date(
+      item.event_date + "T12:00:00"
+    ).toLocaleDateString("sv-SE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+
+    date.textContent =
+      formattedDate + " · " +
+      (category?.name || "Övrigt");
+
+    info.append(title, date);
+    card.append(icon, info);
+    container.append(card);
+  }
+}
+  
 // Föregående månad
 db5El("db5-prev").addEventListener("click", () => {
   db5.month = new Date(
@@ -1956,7 +2220,12 @@ db5El("db5-category-form")
     try {
       const { error } = await supabase
         .from("pet_categories")
-        .insert({ pet_id: petId, name, color });
+        .insert({
+          pet_id: petId,
+          name,
+          color,
+          icon: db5El("db52-new-icon").value
+      });
 
       if (error) throw error;
 
