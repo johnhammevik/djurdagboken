@@ -1308,6 +1308,87 @@ label {
   }
 }
 
+    
+/* DJURDAGBOKEN 6.1 - DJURFAKTA */
+
+.db61-facts {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 20px auto;
+  max-width: 750px;
+}
+
+/* En informationsruta */
+.db61-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+
+  background: #edf3ec;
+  color: #315f49;
+
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Knapp för att redigera uppgifterna */
+.db61-edit-panel {
+  max-width: 550px;
+  margin: 14px auto 22px;
+  border-radius: 15px;
+}
+
+.db61-edit-panel > summary {
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 10px 16px;
+
+  background: #e5eee7;
+  color: #315f49;
+  border-radius: 12px;
+
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.db61-edit-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.db61-edit-panel[open] {
+  background: #f8faf7;
+  border: 1px solid #e0e9df;
+  padding: 15px;
+}
+
+.db61-edit-panel[open] > summary {
+  margin-bottom: 18px;
+}
+
+.db61-edit-panel #profile-form {
+  text-align: left;
+}
+
+/* Mobil */
+@media (max-width: 600px) {
+  .db61-facts {
+    gap: 7px;
+  }
+
+  .db61-fact {
+    font-size: 12px;
+    padding: 8px 11px;
+  }
+}
+
   </style>
 </head>
 
@@ -1413,6 +1494,16 @@ label {
 
   <h2 id="profile-name"></h2>
   <p id="profile-summary"></p>
+  
+<!-- DJURDAGBOKEN 6.1: DJURFAKTA -->
+
+<div id="db61-facts" class="db61-facts"></div>
+
+<!-- Redigering, dold tills användaren öppnar den -->
+<details id="db61-edit-panel" class="db61-edit-panel">
+  <summary>✏️ Redigera djuruppgifter</summary>
+</details>
+
 
   
 <!-- DJURDAGBOKEN 4.0: PROFILBILD -->
@@ -1671,6 +1762,28 @@ label {
   <h3>Om mitt djur</h3>
 
   <form id="profile-form">
+
+    
+<!-- Födelsedatum -->
+<label for="profile-birth">
+  Födelsedatum
+</label>
+
+<input
+  type="date"
+  id="profile-birth"
+>
+
+<!-- Kastrering -->
+<label for="profile-neutered">
+  Är djuret kastrerat?
+</label>
+
+<select id="profile-neutered">
+  <option value="">Ej angivet</option>
+  <option value="true">Ja</option>
+  <option value="false">Nej</option>
+</select>
 
     <label for="profile-breed">Ras</label>
     <input
@@ -1964,6 +2077,91 @@ const profileForm =
 
 let openPetId = null;
 
+    
+// ===== DJURDAGBOKEN 6.1 =====
+
+// Flytta det befintliga formuläret till toppen
+const db61EditPanel =
+  document.getElementById("db61-edit-panel");
+
+db61EditPanel.append(profileForm);
+
+// Ta bort den gamla rubriken längst ner
+const db61OldHeading =
+  document.querySelector("#profile-section > h3");
+
+if (
+  db61OldHeading?.textContent.trim() === "Om mitt djur"
+) {
+  db61OldHeading.remove();
+}
+
+// Räkna ut ålder i år och hela månader
+function db61GetAge(birthDate) {
+  if (!birthDate) return "Ålder ej angiven";
+
+  const [year, month, day] =
+    birthDate.split("-").map(Number);
+
+  const today = new Date();
+
+  const todayString = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+
+  if (birthDate > todayString) {
+    return "Kontrollera födelsedatum";
+  }
+
+  let years = today.getFullYear() - year;
+  let months = today.getMonth() + 1 - month;
+
+  if (today.getDate() < day) {
+    months--;
+  }
+
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  return `${years} år ${months} mån`;
+}
+
+// Visa djurets information i små rutor
+function db61RenderFacts(pet) {
+
+  const container =
+    document.getElementById("db61-facts");
+
+  container.replaceChildren();
+
+  const neuteredText =
+    pet.neutered === true
+      ? "Kastrerad"
+      : pet.neutered === false
+        ? "Ej kastrerad"
+        : "Kastrering ej angiven";
+
+  const facts = [
+    "🐾 " + (pet.species || "Djurart ej angiven"),
+    "🏷️ " + (pet.breed || "Ras ej angiven"),
+    "⚥ " + (pet.sex || "Kön ej angivet"),
+    "📅 " + db61GetAge(pet.birth_date),
+    "✂️ " + neuteredText,
+    "⚖️ Vikt –"
+  ];
+
+  facts.forEach(text => {
+    const chip = document.createElement("span");
+    chip.className = "db61-fact";
+    chip.textContent = text;
+    container.append(chip);
+  });
+}
+
 // Öppna ett djurs profil
 async function openPetProfile(petId) {
   const userId = shownUserId;
@@ -1974,7 +2172,7 @@ async function openPetProfile(petId) {
   const { data: pet, error } = await supabase
     .from("pets")
     .select(
-  "id, name, species, birth_date, breed, sex, description, photo_path"
+  "id, name, species, birth_date, breed, sex, description, photo_path, neutered"
 )
     .eq("id", petId)
     .eq("user_id", userId)
@@ -1993,10 +2191,7 @@ async function openPetProfile(petId) {
     .textContent = "🐾 " + pet.name;
 
   document.getElementById("profile-summary")
-    .textContent = pet.species +
-      (pet.birth_date
-        ? " · Född " + pet.birth_date
-        : "");
+  .textContent = "Min djurprofil";
 
   document.getElementById("profile-breed")
     .value = pet.breed || "";
@@ -2006,6 +2201,22 @@ async function openPetProfile(petId) {
 
   document.getElementById("profile-description")
     .value = pet.description || "";
+
+// Fyll i födelsedatum
+document.getElementById("profile-birth")
+  .value = pet.birth_date || "";
+
+// Fyll i kastreringsstatus
+document.getElementById("profile-neutered")
+  .value = pet.neutered == null
+    ? ""
+    : String(pet.neutered);
+
+// Visa informationsrutorna
+db61RenderFacts(pet);
+
+// Stäng redigeringen när profilen öppnas
+db61EditPanel.open = false;
 
   appSection.hidden = true;
   profileSection.hidden = false;
@@ -2069,20 +2280,44 @@ profileForm.addEventListener("submit", async (event) => {
     document.getElementById("profile-description")
       .value.trim() || null;
 
+const birthDate =
+  document.getElementById("profile-birth")
+    .value || null;
+
+const neuteredValue =
+  document.getElementById("profile-neutered")
+    .value;
+
+const neutered =
+  neuteredValue === ""
+    ? null
+    : neuteredValue === "true";
+
   try {
-    const { error } = await supabase
-      .from("pets")
-      .update({
-        breed: breed,
-        sex: sex,
-        description: description
-      })
-      .eq("id", petId)
-      .eq("user_id", userId)
-      .select("id")
-      .single();
+    
+const { data: updatedPet, error } = await supabase
+  .from("pets")
+  .update({
+    breed: breed,
+    sex: sex,
+    birth_date: birthDate,
+    neutered: neutered,
+    description: description
+  })
+  .eq("id", petId)
+  .eq("user_id", userId)
+  .select(
+    "id, name, species, birth_date, breed, sex, neutered"
+  )
+  .single();
 
     if (error) throw error;
+
+// Uppdatera rutorna när uppgifterna sparats
+if (openPetId === petId && shownUserId === userId) {
+  db61RenderFacts(updatedPet);
+  db61EditPanel.open = false;
+}
 
     showMessage("Profilen är sparad! ✅");
 
