@@ -1389,6 +1389,96 @@ label {
   }
 }
 
+    
+/* DJURDAGBOKEN 6.2 - NY STARTSIDA */
+
+#app-section > h2 {
+  font-size: 30px;
+  margin-bottom: 5px;
+  color: #315f49;
+}
+
+#app-section #welcome {
+  color: #788679;
+  font-size: 13px;
+  margin-bottom: 25px;
+}
+
+/* Djurfamiljen visas först */
+#pet-list {
+  margin-bottom: 25px;
+}
+
+/* Utfällbart formulär */
+#add-pet-panel {
+  margin-top: 30px;
+  background: #f5f9f3;
+  border: 1px solid #dce8dc;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+#add-pet-panel summary {
+  padding: 18px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 650;
+  color: #315f49;
+  list-style: none;
+  position: relative;
+  padding-right: 45px;
+}
+
+#add-pet-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Pil till höger */
+#add-pet-panel summary::after {
+  content: "⌄";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 23px;
+}
+
+#add-pet-panel[open] summary::after {
+  content: "⌃";
+}
+
+#add-pet-panel[open] {
+  background: #fbfdf9;
+}
+
+#add-pet-panel #pet-form {
+  margin: 0 15px 15px;
+  padding: 16px;
+  background: white;
+  border-radius: 14px;
+}
+
+#add-pet-panel summary:focus-visible {
+  outline: 3px solid #79b993;
+  outline-offset: -3px;
+}
+
+/* Utloggning längst ner */
+#app-section #logout {
+  margin-top: 25px;
+}
+
+@media (max-width: 600px) {
+  #app-section > h2 {
+    font-size: 25px;
+  }
+
+  #add-pet-panel summary {
+    padding: 16px;
+    padding-right: 45px;
+  }
+}
+
   </style>
 </head>
 
@@ -1435,32 +1525,70 @@ label {
     </section>
 
     
+
+<!-- DJURDAGBOKEN 6.2: NY STARTSIDA -->
+
 <section id="app-section" class="panel" hidden>
 
-  <h2>🐾 Mina djur</h2>
+  <h2>🐾 Min djurfamilj</h2>
+
   <p id="welcome"></p>
 
-  <h3>Lägg till ett djur</h3>
+  <!-- Här visas användarens djur direkt -->
+  <div id="pet-list"></div>
 
-  <form id="pet-form">
+  <!-- Utfällbar ruta för nya djur -->
+  <details id="add-pet-panel">
 
-    <label for="pet-name">Djurets namn</label>
-    <input
-      id="pet-name"
-      type="text"
-      placeholder="Exempelvis Ozzy"
-      maxlength="60"
-      required
-    >
+    <summary>
+      ➕ Lägg till ett nytt djur
+    </summary>
 
-    <label for="pet-species">Djurart</label>
-    <select id="pet-species" required>
-      <option value="Katt">🐱 Katt</option>
-      <option value="Hund">🐶 Hund</option>
-      <option value="Kanin">🐰 Kanin</option>
-      <option value="Fågel">🐦 Fågel</option>
-      <option value="Annat">🐾 Annat djur</option>
-    </select>
+    <form id="pet-form">
+
+      <label for="pet-name">
+        Djurets namn
+      </label>
+
+      <input
+        id="pet-name"
+        type="text"
+        placeholder="Exempelvis Ozzy"
+        maxlength="60"
+        required
+      >
+
+      <label for="pet-species">
+        Djurart
+      </label>
+
+      <select id="pet-species" required>
+        <option value="Katt">🐱 Katt</option>
+        <option value="Hund">🐶 Hund</option>
+        <option value="Kanin">🐰 Kanin</option>
+        <option value="Fågel">🐦 Fågel</option>
+        <option value="Annat">🐾 Annat djur</option>
+      </select>
+
+      <label for="pet-birth">
+        Födelsedatum (frivilligt)
+      </label>
+
+      <input id="pet-birth" type="date">
+
+      <button type="submit">
+        🐾 Spara djur
+      </button>
+
+    </form>
+
+  </details>
+
+  <button id="logout" class="secondary">
+    Logga ut
+  </button>
+
+</section>
 
     <label for="pet-birth">
       Födelsedatum (frivilligt)
