@@ -365,6 +365,164 @@ textarea:focus {
   }
 }
 
+
+/* DJURDAGBOKEN 5.0 - KALENDER */
+
+#db5-calendar {
+  background: #fbfcf9;
+  border: 1px solid #dfe8df;
+  border-radius: 20px;
+  padding: 18px;
+  margin: 25px 0;
+}
+
+.db5-month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.db5-month-nav button {
+  width: 42px;
+  margin: 0;
+  padding: 9px;
+  background: #e5eee7;
+  color: #285c43;
+}
+
+.db5-month-nav strong {
+  text-transform: capitalize;
+  text-align: center;
+}
+
+.db5-weekdays,
+.db5-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.db5-weekdays span {
+  text-align: center;
+  color: #718075;
+  font-size: 12px;
+  padding: 8px 0;
+}
+
+.db5-days button {
+  margin: 0;
+  padding: 6px 2px;
+  min-height: 53px;
+  width: 100%;
+  background: white;
+  color: #263b32;
+  border: 1px solid #e8eee8;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.db5-days button.db5-selected {
+  background: #dcece0;
+  border: 2px solid #47845d;
+}
+
+.db5-empty {
+  min-height: 53px;
+}
+
+.db5-dots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.db5-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.db5-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.db5-filters button {
+  width: auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid #d4ddd5;
+  background: white;
+  color: #263b32;
+}
+
+.db5-filters button.db5-off {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.db5-event-card {
+  background: white;
+  border-left: 5px solid #79a889;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 10px 0;
+  box-shadow: 0 2px 10px #00000008;
+}
+
+.db5-event-card p {
+  margin: 5px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.db5-details {
+  background: white;
+  padding: 15px;
+  margin-top: 14px;
+  border: 1px solid #dfe8df;
+  border-radius: 14px;
+}
+
+.db5-details summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #285c43;
+}
+
+.db5-details form {
+  margin-top: 16px;
+}
+
+#db5-category-color {
+  height: 48px;
+  padding: 5px;
+  cursor: pointer;
+}
+
+#db5-status {
+  color: #366a4b;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  #db5-calendar {
+    padding: 12px;
+  }
+
+  .db5-days button,
+  .db5-empty {
+    min-height: 45px;
+  }
+}
+    
   </style>
 </head>
 
@@ -501,6 +659,118 @@ textarea:focus {
 
 </div>
 
+
+<!-- DJURDAGBOKEN 5.0: KALENDER -->
+
+<section id="db5-calendar">
+
+  <h3>📅 Min kalender</h3>
+
+  <div class="db5-month-nav">
+    <button id="db5-prev" type="button">❮</button>
+    <strong id="db5-month-title"></strong>
+    <button id="db5-next" type="button">❯</button>
+  </div>
+
+  <div class="db5-weekdays">
+    <span>Mån</span>
+    <span>Tis</span>
+    <span>Ons</span>
+    <span>Tor</span>
+    <span>Fre</span>
+    <span>Lör</span>
+    <span>Sön</span>
+  </div>
+
+  <div id="db5-days" class="db5-days"></div>
+
+  <h4>Filtrera kategorier</h4>
+  <div id="db5-filters" class="db5-filters"></div>
+
+  <h4 id="db5-selected-title">
+    Händelser
+  </h4>
+  <div id="db5-events"></div>
+
+  <details class="db5-details">
+    <summary>🎨 Skapa egen kategori</summary>
+
+    <form id="db5-category-form">
+      <label for="db5-category-name">
+        Kategorins namn
+      </label>
+      <input
+        id="db5-category-name"
+        type="text"
+        placeholder="T.ex. Veterinär, Foder, Träning"
+        maxlength="40"
+        required
+      >
+
+      <label for="db5-category-color">
+        Välj färg
+      </label>
+      <input
+        id="db5-category-color"
+        type="color"
+        value="#79A889"
+      >
+
+      <button type="submit">
+        Spara kategori
+      </button>
+    </form>
+  </details>
+
+  <details class="db5-details" id="db5-new-event">
+    <summary>➕ Lägg till ny händelse</summary>
+
+    <form id="db5-event-form">
+
+      <label for="db5-event-title">Rubrik</label>
+      <input
+        id="db5-event-title"
+        type="text"
+        maxlength="120"
+        placeholder="T.ex. Vaccination"
+        required
+      >
+
+      <label for="db5-event-date">Datum</label>
+      <input
+        id="db5-event-date"
+        type="date"
+        required
+      >
+
+      <label for="db5-event-category">
+        Kategori
+      </label>
+      <select id="db5-event-category" required>
+        <option value="">Välj kategori</option>
+      </select>
+
+      <label for="db5-event-notes">
+        Anteckning (frivillig)
+      </label>
+      <textarea
+        id="db5-event-notes"
+        rows="4"
+        maxlength="2000"
+        placeholder="Skriv något om händelsen..."
+      ></textarea>
+
+      <button type="submit">
+        Spara händelse
+      </button>
+    </form>
+  </details>
+
+  <p id="db5-status" role="status"
+     aria-live="polite"></p>
+
+</section>
+  
   <h3>Om mitt djur</h3>
 
   <form id="profile-form">
@@ -851,6 +1121,10 @@ showPetPhoto(
 
 
   showMessage("");
+  
+  // Öppna kalendern för det valda djuret
+await db5OpenCalendar(pet.id);
+  
 }
 
 // Gå tillbaka till djurlistan
@@ -859,6 +1133,11 @@ document.getElementById("back-to-list")
 
     profileSection.hidden = true;
     appSection.hidden = false;
+
+    // Stäng kalendern för det gamla djuret
+db5.petId = null;
+db5.requestNumber++;
+    
     openPetId = null;
 
     showMessage("");
@@ -1023,6 +1302,423 @@ document.getElementById("upload-photo")
     }
   });
 
+    
+// ===== DJURDAGBOKEN 5.0: KALENDER =====
+
+// Kalenderns tillfälliga tillstånd
+const db5 = {
+  petId: null,
+  month: new Date(
+    new Date().getFullYear(),
+    new Date().getMonth(), 1
+  ),
+  selected: "",
+  categories: [],
+  events: [],
+  hiddenCategories: new Set(),
+  requestNumber: 0
+};
+
+const db5El = id => document.getElementById(id);
+
+// Skapa datum utan tidszonsproblem
+function db5Date(y, m, d) {
+  return [
+    y,
+    String(m + 1).padStart(2, "0"),
+    String(d).padStart(2, "0")
+  ].join("-");
+}
+
+function db5Status(text) {
+  db5El("db5-status").textContent = text;
+}
+
+// Öppna kalendern för ett djur
+async function db5OpenCalendar(petId) {
+  const now = new Date();
+
+  db5.petId = petId;
+  db5.month = new Date(
+    now.getFullYear(), now.getMonth(), 1
+  );
+  db5.selected = db5Date(
+    now.getFullYear(), now.getMonth(), now.getDate()
+  );
+  db5.hiddenCategories = new Set();
+
+  db5El("db5-event-date").value = db5.selected;
+  db5Status("");
+
+  await db5Load();
+}
+
+// Hämta kategorier och månadens händelser
+async function db5Load() {
+  const petId = db5.petId;
+  const userId = shownUserId;
+  if (!petId || !userId) return;
+
+  const request = ++db5.requestNumber;
+  const year = db5.month.getFullYear();
+  const month = db5.month.getMonth();
+
+  const firstDay = db5Date(year, month, 1);
+  const lastDay = db5Date(
+    year, month,
+    new Date(year, month + 1, 0).getDate()
+  );
+
+  const [categoryResult, eventResult] =
+    await Promise.all([
+      supabase
+        .from("pet_categories")
+        .select("id, name, color")
+        .eq("pet_id", petId)
+        .eq("user_id", userId)
+        .order("name"),
+
+      supabase
+        .from("pet_events")
+        .select("id, title, event_date, notes, category_id")
+        .eq("pet_id", petId)
+        .eq("user_id", userId)
+        .gte("event_date", firstDay)
+        .lte("event_date", lastDay)
+        .order("event_date")
+    ]);
+
+  if (
+    request !== db5.requestNumber ||
+    db5.petId !== petId ||
+    shownUserId !== userId
+  ) return;
+
+  if (categoryResult.error || eventResult.error) {
+    db5Status(
+      "Kunde inte hämta kalendern: " +
+      (categoryResult.error || eventResult.error).message
+    );
+    return;
+  }
+
+  db5.categories = categoryResult.data;
+  db5.events = eventResult.data;
+
+  db5Render();
+}
+
+// Rita kalendern
+function db5Render() {
+  const year = db5.month.getFullYear();
+  const month = db5.month.getMonth();
+
+  db5El("db5-month-title").textContent =
+    db5.month.toLocaleDateString("sv-SE", {
+      month: "long",
+      year: "numeric"
+    });
+
+  const days = db5El("db5-days");
+  days.replaceChildren();
+
+  // Måndag är veckans första dag
+  const offset =
+    (new Date(year, month, 1).getDay() + 6) % 7;
+
+  for (let i = 0; i < offset; i++) {
+    const empty = document.createElement("div");
+    empty.className = "db5-empty";
+    days.append(empty);
+  }
+
+  const lastDay =
+    new Date(year, month + 1, 0).getDate();
+
+  for (let day = 1; day <= lastDay; day++) {
+    const date = db5Date(year, month, day);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = day;
+
+    if (date === db5.selected) {
+      button.classList.add("db5-selected");
+    }
+
+    button.setAttribute(
+      "aria-label",
+      `${day} ${db5El("db5-month-title").textContent}`
+    );
+
+    // Lägg färgprickar under datumet
+    const dots = document.createElement("div");
+    dots.className = "db5-dots";
+
+    const visibleEvents = db5.events.filter(e =>
+      e.event_date === date &&
+      !db5.hiddenCategories.has(e.category_id)
+    );
+
+    const colors = new Set();
+
+    for (const event of visibleEvents) {
+      const category = db5.categories.find(
+        c => c.id === event.category_id
+      );
+
+      if (category) colors.add(category.color);
+    }
+
+    for (const color of colors) {
+      const dot = document.createElement("span");
+      dot.className = "db5-dot";
+      dot.style.backgroundColor = color;
+      dots.append(dot);
+    }
+
+    button.append(dots);
+
+    button.addEventListener("click", () => {
+      db5.selected = date;
+      db5El("db5-event-date").value = date;
+      db5Render();
+    });
+
+    days.append(button);
+  }
+
+  // Visa och filtrera kategorier
+  const filters = db5El("db5-filters");
+  filters.replaceChildren();
+
+  const categorySelect = db5El("db5-event-category");
+  const previousChoice = categorySelect.value;
+
+  categorySelect.replaceChildren(
+    new Option("Välj kategori", "")
+  );
+
+  for (const category of db5.categories) {
+    categorySelect.add(
+      new Option(category.name, category.id)
+    );
+
+    const filter = document.createElement("button");
+    filter.type = "button";
+    filter.textContent = "● " + category.name;
+    filter.style.borderColor = category.color;
+
+    if (db5.hiddenCategories.has(category.id)) {
+      filter.classList.add("db5-off");
+      filter.setAttribute("aria-pressed", "false");
+    } else {
+      filter.style.backgroundColor = category.color + "22";
+      filter.setAttribute("aria-pressed", "true");
+    }
+
+    filter.addEventListener("click", () => {
+      if (db5.hiddenCategories.has(category.id)) {
+        db5.hiddenCategories.delete(category.id);
+      } else {
+        db5.hiddenCategories.add(category.id);
+      }
+
+      db5Render();
+    });
+
+    filters.append(filter);
+  }
+
+  if (db5.categories.some(c => c.id === previousChoice)) {
+    categorySelect.value = previousChoice;
+  }
+
+  if (db5.categories.length === 0) {
+    const info = document.createElement("p");
+    info.textContent =
+      "Skapa din första kategori för att börja.";
+    filters.append(info);
+  }
+
+  // Visa händelser för valt datum
+  const selectedDate = new Date(
+    db5.selected + "T12:00:00"
+  );
+
+  db5El("db5-selected-title").textContent =
+    "Händelser " +
+    selectedDate.toLocaleDateString("sv-SE", {
+      day: "numeric",
+      month: "long"
+    });
+
+  const eventList = db5El("db5-events");
+  eventList.replaceChildren();
+
+  const matchingEvents = db5.events.filter(e =>
+    e.event_date === db5.selected &&
+    !db5.hiddenCategories.has(e.category_id)
+  );
+
+  if (matchingEvents.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "Inga synliga händelser.";
+    eventList.append(empty);
+  }
+
+  for (const event of matchingEvents) {
+    const category = db5.categories.find(
+      c => c.id === event.category_id
+    );
+
+    const card = document.createElement("div");
+    card.className = "db5-event-card";
+    card.style.borderLeftColor =
+      category?.color || "#79A889";
+
+    const heading = document.createElement("strong");
+    heading.textContent = event.title;
+
+    const categoryName = document.createElement("p");
+    categoryName.textContent =
+      category?.name || "Utan kategori";
+
+    card.append(heading, categoryName);
+
+    if (event.notes) {
+      const note = document.createElement("p");
+      note.textContent = event.notes;
+      card.append(note);
+    }
+
+    eventList.append(card);
+  }
+}
+
+// Föregående månad
+db5El("db5-prev").addEventListener("click", () => {
+  db5.month = new Date(
+    db5.month.getFullYear(),
+    db5.month.getMonth() - 1, 1
+  );
+
+  db5.selected = db5Date(
+    db5.month.getFullYear(),
+    db5.month.getMonth(), 1
+  );
+
+  db5El("db5-event-date").value = db5.selected;
+  db5Load();
+});
+
+// Nästa månad
+db5El("db5-next").addEventListener("click", () => {
+  db5.month = new Date(
+    db5.month.getFullYear(),
+    db5.month.getMonth() + 1, 1
+  );
+
+  db5.selected = db5Date(
+    db5.month.getFullYear(),
+    db5.month.getMonth(), 1
+  );
+
+  db5El("db5-event-date").value = db5.selected;
+  db5Load();
+});
+
+// Spara en ny kategori
+db5El("db5-category-form")
+  .addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const petId = db5.petId;
+    if (!petId || !shownUserId) return;
+
+    const name = db5El("db5-category-name").value.trim();
+    const color = db5El("db5-category-color").value;
+    if (!name) return;
+
+    const button = event.target.querySelector(
+      'button[type="submit"]'
+    );
+
+    button.disabled = true;
+
+    try {
+      const { error } = await supabase
+        .from("pet_categories")
+        .insert({ pet_id: petId, name, color });
+
+      if (error) throw error;
+
+      event.target.reset();
+      db5Status("Kategorin har sparats! ✅");
+      await db5Load();
+    } catch (error) {
+      db5Status("Fel: " + error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+// Spara en ny kalenderhändelse
+db5El("db5-event-form")
+  .addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const petId = db5.petId;
+    const title = db5El("db5-event-title").value.trim();
+    const date = db5El("db5-event-date").value;
+    const categoryId = db5El("db5-event-category").value;
+    const notes = db5El("db5-event-notes").value.trim();
+
+    if (!petId || !shownUserId || !title || !date) return;
+
+    if (!db5.categories.some(c => c.id === categoryId)) {
+      db5Status("Välj en kategori först.");
+      return;
+    }
+
+    const button = event.target.querySelector(
+      'button[type="submit"]'
+    );
+
+    button.disabled = true;
+
+    try {
+      const { error } = await supabase
+        .from("pet_events")
+        .insert({
+          pet_id: petId,
+          category_id: categoryId,
+          title,
+          event_date: date,
+          notes: notes || null
+        });
+
+      if (error) throw error;
+
+      db5.selected = date;
+      db5.month = new Date(
+        Number(date.slice(0, 4)),
+        Number(date.slice(5, 7)) - 1,
+        1
+      );
+
+      db5.hiddenCategories.delete(categoryId);
+      event.target.reset();
+      db5El("db5-event-date").value = date;
+
+      db5Status("Händelsen har sparats! ✅");
+      await db5Load();
+    } catch (error) {
+      db5Status("Fel: " + error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
     
     // Logga in
     authForm.addEventListener("submit", async (event) => {
