@@ -523,6 +523,95 @@ textarea:focus {
   }
 }
     
+/* DJURDAGBOKEN 5.1 - KALENDERDESIGN */
+
+#db5-calendar {
+  background: #fffdfa;
+  border-radius: 24px;
+  box-shadow: 0 5px 20px #27432e0c;
+}
+
+.db5-month-nav {
+  background: #f4f6f0;
+  border-radius: 15px;
+  padding: 10px;
+}
+
+.db5-days button {
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+
+.db5-days button:hover {
+  background: #edf4ec;
+}
+
+.db5-days button.db5-selected {
+  background: #dcece0;
+  border: 2px solid #47845d;
+}
+
+.db5-dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* Färgkategorier */
+
+.db51-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 30px;
+  background: #f5f7f3;
+  overflow: hidden;
+}
+
+.db51-chip .db51-edit-category {
+  border-radius: 50%;
+  padding: 7px;
+  margin: 0 5px 0 0;
+  background: #e2eae1;
+  color: #365e45;
+  min-width: 32px;
+  width: 32px;
+  font-size: 15px;
+}
+
+.db5-filters button {
+  border-radius: 30px;
+  margin: 0;
+}
+
+/* Händelsekort */
+
+.db5-event-card {
+  border-left-width: 6px;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.db51-edit-event {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  margin-top: 10px;
+  background: #e5eee7;
+  color: #285c43;
+}
+
+#db51-category-color {
+  height: 50px;
+  padding: 5px;
+}
+
+.db5-details {
+  border-radius: 16px;
+  background: #fafbf8;
+}
+
   </style>
 </head>
 
@@ -687,6 +776,42 @@ textarea:focus {
   <h4>Filtrera kategorier</h4>
   <div id="db5-filters" class="db5-filters"></div>
 
+  
+<!-- Redigera en befintlig kategori -->
+<details id="db51-category-editor"
+         class="db5-details" hidden>
+
+  <summary>✏️ Redigera kategori</summary>
+
+  <form id="db51-category-form">
+
+    <label for="db51-category-name">
+      Kategorins namn
+    </label>
+    <input id="db51-category-name"
+           type="text"
+           maxlength="40"
+           required>
+
+    <label for="db51-category-color">
+      Välj färg
+    </label>
+    <input id="db51-category-color"
+           type="color">
+
+    <button type="submit">
+      Spara ändringar
+    </button>
+
+    <button id="db51-cancel-category"
+            type="button"
+            class="secondary">
+      Avbryt
+    </button>
+
+  </form>
+</details>
+
   <h4 id="db5-selected-title">
     Händelser
   </h4>
@@ -760,9 +885,15 @@ textarea:focus {
         placeholder="Skriv något om händelsen..."
       ></textarea>
 
-      <button type="submit">
-        Spara händelse
-      </button>
+      <button type="submit" id="db51-save-event">
+  Spara händelse
+</button>
+
+<button type="button"
+        id="db51-cancel-event"
+        class="secondary" hidden>
+  Avbryt redigering
+</button>
     </form>
   </details>
 
@@ -1346,6 +1477,10 @@ async function db5OpenCalendar(petId) {
     now.getFullYear(), now.getMonth(), now.getDate()
   );
   db5.hiddenCategories = new Set();
+  
+// Börja med ett tomt redigeringsläge
+db51CancelEventEdit();
+db51CancelCategoryEdit();
 
   db5El("db5-event-date").value = db5.selected;
   db5Status("");
@@ -1527,7 +1662,27 @@ function db5Render() {
       db5Render();
     });
 
-    filters.append(filter);
+    
+// Lägg filtret och redigeringsknappen tillsammans
+const chip = document.createElement("span");
+chip.className = "db51-chip";
+
+const editCategory = document.createElement("button");
+editCategory.type = "button";
+editCategory.className = "db51-edit-category";
+editCategory.textContent = "✎";
+editCategory.title = "Redigera " + category.name;
+editCategory.setAttribute(
+  "aria-label",
+  "Redigera kategorin " + category.name
+);
+
+editCategory.addEventListener("click", () => {
+  db51EditCategory(category.id);
+});
+
+chip.append(filter, editCategory);
+filters.append(chip);
   }
 
   if (db5.categories.some(c => c.id === previousChoice)) {
@@ -1592,10 +1747,162 @@ function db5Render() {
       card.append(note);
     }
 
-    eventList.append(card);
+    
+// Knapp för att redigera händelsen
+const editEvent = document.createElement("button");
+editEvent.type = "button";
+editEvent.className = "db51-edit-event";
+editEvent.textContent = "✏️ Redigera";
+
+editEvent.addEventListener("click", () => {
+  db51EditEvent(event.id);
+});
+
+card.append(editEvent);
+eventList.append(card);
   }
 }
 
+    
+// ===== DJURDAGBOKEN 5.1: REDIGERING =====
+
+let db51EditingCategoryId = null;
+let db51EditingEventId = null;
+
+// Öppna redigering av kategori
+function db51EditCategory(categoryId) {
+  const category = db5.categories.find(
+    c => c.id === categoryId
+  );
+
+  if (!category) return;
+
+  db51EditingCategoryId = category.id;
+
+  db5El("db51-category-name").value = category.name;
+  db5El("db51-category-color").value = category.color;
+
+  const editor = db5El("db51-category-editor");
+  editor.hidden = false;
+  editor.open = true;
+  editor.scrollIntoView({
+    behavior: "smooth",
+    block: "nearest"
+  });
+}
+
+// Avbryt kategoriredigering
+function db51CancelCategoryEdit() {
+  db51EditingCategoryId = null;
+
+  const editor = db5El("db51-category-editor");
+  editor.open = false;
+  editor.hidden = true;
+
+  db5El("db51-category-form").reset();
+}
+
+db5El("db51-cancel-category")
+  .addEventListener("click", db51CancelCategoryEdit);
+
+// Spara ändringar i kategorin
+db5El("db51-category-form")
+  .addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const categoryId = db51EditingCategoryId;
+    const petId = db5.petId;
+    const userId = shownUserId;
+
+    if (!categoryId || !petId || !userId) return;
+
+    const name = db5El("db51-category-name")
+      .value.trim();
+
+    const color = db5El("db51-category-color").value;
+
+    if (!name) return;
+
+    const button = event.target.querySelector(
+      'button[type="submit"]'
+    );
+
+    button.disabled = true;
+
+    try {
+      const { error } = await supabase
+        .from("pet_categories")
+        .update({ name, color })
+        .eq("id", categoryId)
+        .eq("pet_id", petId)
+        .eq("user_id", userId)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      if (db5.petId !== petId ||
+          shownUserId !== userId) return;
+
+      db51CancelCategoryEdit();
+      db5Status("Kategorin har uppdaterats! ✅");
+
+      await db5Load();
+
+    } catch (error) {
+      db5Status(
+        "Kunde inte ändra kategorin: " + error.message
+      );
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+// Öppna redigering av en händelse
+function db51EditEvent(eventId) {
+  const item = db5.events.find(
+    e => e.id === eventId
+  );
+
+  if (!item) return;
+
+  db51EditingEventId = item.id;
+
+  db5El("db5-event-title").value = item.title;
+  db5El("db5-event-date").value = item.event_date;
+  db5El("db5-event-category").value = item.category_id;
+  db5El("db5-event-notes").value = item.notes || "";
+
+  db5El("db51-save-event").textContent =
+    "Spara ändringar";
+
+  db5El("db51-cancel-event").hidden = false;
+
+  const panel = db5El("db5-new-event");
+  panel.open = true;
+  panel.scrollIntoView({
+    behavior: "smooth",
+    block: "nearest"
+  });
+}
+
+// Återgå till att skapa nya händelser
+function db51CancelEventEdit() {
+  db51EditingEventId = null;
+
+  db5El("db5-event-form").reset();
+
+  db5El("db51-save-event").textContent =
+    "Spara händelse";
+
+  db5El("db51-cancel-event").hidden = true;
+
+  db5El("db5-event-date").value = db5.selected;
+}
+
+db5El("db51-cancel-event")
+  .addEventListener("click", db51CancelEventEdit);
+    
 // Föregående månad
 db5El("db5-prev").addEventListener("click", () => {
   db5.month = new Date(
@@ -1688,15 +1995,42 @@ db5El("db5-event-form")
     button.disabled = true;
 
     try {
-      const { error } = await supabase
-        .from("pet_events")
-        .insert({
-          pet_id: petId,
-          category_id: categoryId,
-          title,
-          event_date: date,
-          notes: notes || null
-        });
+      
+const editingId = db51EditingEventId;
+
+const changes = {
+  category_id: categoryId,
+  title: title,
+  event_date: date,
+  notes: notes || null
+};
+
+let result;
+
+if (editingId) {
+  // Uppdatera en befintlig händelse
+  result = await supabase
+    .from("pet_events")
+    .update(changes)
+    .eq("id", editingId)
+    .eq("pet_id", petId)
+    .eq("user_id", shownUserId)
+    .select("id")
+    .single();
+
+} else {
+  // Skapa en helt ny händelse
+  result = await supabase
+    .from("pet_events")
+    .insert({
+      pet_id: petId,
+      ...changes
+    })
+    .select("id")
+    .single();
+}
+
+const { error } = result;
 
       if (error) throw error;
 
@@ -1708,11 +2042,19 @@ db5El("db5-event-form")
       );
 
       db5.hiddenCategories.delete(categoryId);
-      event.target.reset();
-      db5El("db5-event-date").value = date;
+      
+db51CancelEventEdit();
 
-      db5Status("Händelsen har sparats! ✅");
-      await db5Load();
+db5El("db5-event-date").value = date;
+
+db5Status(
+  editingId
+    ? "Händelsen har uppdaterats! ✅"
+    : "Händelsen har sparats! ✅"
+);
+
+await db5Load();
+      
     } catch (error) {
       db5Status("Fel: " + error.message);
     } finally {
