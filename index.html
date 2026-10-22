@@ -729,6 +729,20 @@ textarea:focus {
   margin-bottom: 14px;
 }
     
+/* DJURDAGBOKEN 5.4 */
+
+.db54-delete-button {
+  background: #f9e4e4;
+  color: #a33838;
+  border: 1px solid #edc5c5;
+  margin-top: 12px;
+  border-radius: 12px;
+}
+
+.db54-delete-button:hover {
+  background: #f3d4d4;
+}
+
   </style>
 </head>
 
@@ -943,7 +957,14 @@ textarea:focus {
   class="secondary">
   📦 Arkivera kategori
 </button>
-    
+
+<button
+  id="db54-delete-category"
+  type="button"
+  class="db54-delete-button">
+  🗑️ Radera kategori permanent
+</button>
+
     <button id="db51-cancel-category"
             type="button"
             class="secondary">
@@ -2362,7 +2383,105 @@ async function db53DeleteEvent(eventId, eventTitle) {
     );
   }
 }
+
     
+// ===== DJURDAGBOKEN 5.4: RADERA KATEGORI =====
+
+db5El("db54-delete-category")
+  .addEventListener("click", async () => {
+
+    const categoryId = db51EditingCategoryId;
+    const petId = db5.petId;
+    const userId = shownUserId;
+
+    const category = db5.categories.find(
+      c => c.id === categoryId
+    );
+
+    if (!category || !petId || !userId) return;
+
+    const button = db5El("db54-delete-category");
+    button.disabled = true;
+
+    try {
+      // Kontrollera alla händelser i kategorin,
+      // även de som ligger i andra månader.
+      const { count, error: countError } = await supabase
+        .from("pet_events")
+        .select("id", { count: "exact", head: true })
+        .eq("category_id", categoryId)
+        .eq("pet_id", petId)
+        .eq("user_id", userId);
+
+      if (countError) throw countError;
+
+      if (
+        db5.petId !== petId ||
+        shownUserId !== userId ||
+        db51EditingCategoryId !== categoryId
+      ) return;
+
+      if (count === null) {
+        throw new Error("Kunde inte kontrollera händelserna.");
+      }
+
+      if (count > 0) {
+        db5Status(
+          "Kategorin har " + count +
+          " sparade händelser. Flytta eller radera " +
+          "dem först, eller arkivera kategorin."
+        );
+        return;
+      }
+
+      // Bekräfta permanent borttagning
+      const confirmed = confirm(
+        "Vill du radera kategorin " +
+        category.name + " permanent?\n\n" +
+        "Detta går inte att ångra."
+      );
+
+      if (!confirmed) return;
+
+      const { error } = await supabase
+        .from("pet_categories")
+        .delete()
+        .eq("id", categoryId)
+        .eq("pet_id", petId)
+        .eq("user_id", userId)
+        .select("id")
+        .single();
+
+      if (error) {
+        if (error.code === "23503") {
+          throw new Error(
+            "Kategorin används av händelser " +
+            "och kan inte raderas."
+          );
+        }
+        throw error;
+      }
+
+      if (
+        db5.petId !== petId ||
+        shownUserId !== userId
+      ) return;
+
+      db5.hiddenCategories.delete(categoryId);
+      db51CancelCategoryEdit();
+
+      await db5Load();
+      db5Status("Kategorin har raderats! ✅");
+
+    } catch (error) {
+      db5Status(
+        "Kunde inte radera kategorin: " + error.message
+      );
+    } finally {
+      button.disabled = false;
+    }
+  });
+
 // Föregående månad
 db5El("db5-prev").addEventListener("click", () => {
   db5.month = new Date(
