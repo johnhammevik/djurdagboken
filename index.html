@@ -1677,8 +1677,7 @@ const [categoryResult, eventResult, upcomingResult] =
     db5.petId !== petId ||
     shownUserId !== userId
   ) return;
-
-  if (categoryResult.error || eventResult.error) {
+  
     const loadError =
   categoryResult.error ||
   eventResult.error ||
