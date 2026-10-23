@@ -1771,6 +1771,156 @@ label {
     padding: 11px 6px;
   }
 }
+    
+/* DJURDAGBOKEN 6.7 - VIKT & UTVECKLING */
+
+#db67-panel {
+  margin: 24px 0;
+  background: #f7faf5;
+  border: 1px solid #dce8dc;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+#db67-panel > summary {
+  padding: 19px;
+  cursor: pointer;
+  color: #315f49;
+  font-size: 17px;
+  font-weight: 700;
+  list-style: none;
+}
+
+#db67-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+#db67-panel > summary::after {
+  content: "⌄";
+  float: right;
+}
+
+#db67-panel[open] > summary::after {
+  content: "⌃";
+}
+
+.db67-body {
+  padding: 0 17px 20px;
+}
+
+.db67-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 10px 0 20px;
+}
+
+.db67-summary > div {
+  background: white;
+  padding: 16px;
+  border: 1px solid #e3eae0;
+  border-radius: 15px;
+}
+
+.db67-summary small {
+  display: block;
+  color: #718075;
+  font-size: 12px;
+}
+
+.db67-summary strong {
+  display: block;
+  color: #315f49;
+  font-size: 20px;
+  margin-top: 5px;
+}
+
+.db67-form-panel {
+  background: #edf5ed;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.db67-form-panel > summary {
+  cursor: pointer;
+  color: #315f49;
+  font-weight: 700;
+}
+
+#db67-form {
+  margin-top: 15px;
+}
+
+#db67-chart {
+  background: white;
+  border: 1px solid #e3eae0;
+  padding: 12px;
+  border-radius: 15px;
+}
+
+#db67-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.db67-record {
+  background: white;
+  border: 1px solid #e3eae0;
+  border-radius: 13px;
+  padding: 14px;
+  margin: 9px 0;
+}
+
+.db67-record strong {
+  color: #315f49;
+}
+
+.db67-record small {
+  display: block;
+  color: #718075;
+  margin-top: 4px;
+}
+
+.db67-record p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.db67-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.db67-actions button {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.db67-delete {
+  background: #f8e6e6;
+  color: #973c3c;
+}
+
+#db67-status {
+  font-size: 13px;
+  color: #315f49;
+}
+
+@media (max-width: 480px) {
+  .db67-summary strong {
+    font-size: 17px;
+  }
+
+  .db67-body {
+    padding: 0 12px 16px;
+  }
+}
 
   </style>
 </head>
@@ -2211,6 +2361,88 @@ label {
      aria-live="polite"></p>
 
 </section>
+
+  
+<!-- DJURDAGBOKEN 6.7 - VIKTREGISTRERING -->
+
+<details id="db67-panel">
+
+  <summary>⚖️ Vikt & utveckling</summary>
+
+  <div class="db67-body">
+
+    <div class="db67-summary">
+
+      <div>
+        <small>Senaste registrerade vikt</small>
+        <strong id="db67-latest">Ingen vikt ännu</strong>
+      </div>
+
+      <div>
+        <small>Sedan förra vägningen</small>
+        <strong id="db67-change">–</strong>
+      </div>
+
+    </div>
+
+    <details id="db67-entry-panel" class="db67-form-panel">
+
+      <summary>➕ Registrera ny vikt</summary>
+
+      <form id="db67-form">
+
+        <label for="db67-date">Datum</label>
+        <input id="db67-date" type="date" required>
+
+        <label for="db67-weight">Vikt i kg</label>
+        <input
+          id="db67-weight"
+          type="text"
+          inputmode="decimal"
+          placeholder="Exempel: 4,85"
+          required
+        >
+
+        <label for="db67-notes">
+          Anteckning (frivillig)
+        </label>
+        <textarea
+          id="db67-notes"
+          rows="3"
+          maxlength="500"
+          placeholder="Exempel: Vägde hemma"
+        ></textarea>
+
+        <button id="db67-save" type="submit">
+          Spara vägning
+        </button>
+
+        <button
+          id="db67-cancel"
+          type="button"
+          class="secondary"
+          hidden
+        >
+          Avbryt redigering
+        </button>
+
+      </form>
+
+    </details>
+
+    <h3>📈 Viktutveckling</h3>
+    <div id="db67-chart"></div>
+
+    <h3>📋 Vikthistorik</h3>
+    <div id="db67-history"></div>
+
+    <p id="db67-status"
+       role="status"
+       aria-live="polite"></p>
+
+  </div>
+
+</details>
   
   <h3>Om mitt djur</h3>
 
@@ -2529,6 +2761,516 @@ const profileForm =
 let openPetId = null;
 
     
+// ====================================
+// DJURDAGBOKEN 6.7 - VIKTREGISTRERING
+// ====================================
+
+const db67El = id => document.getElementById(id);
+
+let db67EditId = null;
+let db67Request = 0;
+let db67LatestPetId = null;
+let db67LatestWeight = null;
+
+function db67FormatWeight(value) {
+  return Number(value).toLocaleString("sv-SE", {
+    maximumFractionDigits: 3
+  });
+}
+
+function db67Today() {
+  const today = new Date();
+
+  return [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function db67FormatDate(date) {
+  return new Date(date + "T12:00:00")
+    .toLocaleDateString("sv-SE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+}
+
+// Återställ formuläret
+function db67ResetForm() {
+  db67EditId = null;
+
+  db67El("db67-form").reset();
+  db67El("db67-date").value = db67Today();
+  db67El("db67-date").max = db67Today();
+
+  db67El("db67-save").textContent = "Spara vägning";
+  db67El("db67-cancel").hidden = true;
+}
+
+// Förbered sektionen när ett djur öppnas
+function db67PreparePet(petId) {
+  db67Request++;
+  db67LatestPetId = petId;
+  db67LatestWeight = null;
+
+  db67El("db67-panel").open = false;
+  db67El("db67-entry-panel").open = false;
+
+  db67El("db67-latest").textContent = "Ingen vikt ännu";
+  db67El("db67-change").textContent = "–";
+  db67El("db67-chart").replaceChildren();
+  db67El("db67-history").replaceChildren();
+  db67El("db67-status").textContent = "";
+
+  db67ResetForm();
+}
+
+// Uppdatera vikt-rutan högst upp på djurprofilen
+function db67UpdateProfileFact() {
+  const fact =
+    db67El("db61-facts").lastElementChild;
+
+  if (fact) {
+    fact.textContent =
+      db67LatestWeight === null
+        ? 
+"⚖️ Vikt " + (
+  db67LatestPetId === pet.id &&
+  db67LatestWeight !== null
+    ? db67FormatWeight(db67LatestWeight) + " kg"
+    : "–"
+)
+        : "⚖️ Vikt " +
+          db67FormatWeight(db67LatestWeight) +
+          " kg";
+  }
+}
+
+// Rita ett diagram utan extra bibliotek
+function db67DrawChart(rows) {
+  const holder = db67El("db67-chart");
+  holder.replaceChildren();
+
+  const points = [...rows].reverse().slice(-40);
+
+  if (points.length === 0) {
+    holder.textContent =
+      "Registrera en vägning för att se diagrammet.";
+    return;
+  }
+
+  const values = points.map(
+    row => Number(row.weight_kg)
+  );
+
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const padding = Math.max(
+    (maximum - minimum) * 0.2, 0.1
+  );
+
+  const low = Math.max(0, minimum - padding);
+  const high = maximum + padding;
+
+  const ns = "http://www.w3.org/2000/svg";
+
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 640 240");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    "Diagram över registrerade vikter"
+  );
+
+  function add(tag, attributes, text) {
+    const element =
+      document.createElementNS(ns, tag);
+
+    for (const [key, value] of
+      Object.entries(attributes)) {
+      element.setAttribute(key, value);
+    }
+
+    if (text !== undefined) {
+      element.textContent = text;
+    }
+
+    svg.append(element);
+    return element;
+  }
+
+  // Horisontella hjälplinjer
+  for (let i = 0; i <= 3; i++) {
+    const y = 20 + i * 55;
+    const weight = high -
+      (i / 3) * (high - low);
+
+    add("line", {
+      x1: 65, y1: y, x2: 625, y2: y,
+      stroke: "#dce7de"
+    });
+
+    add("text", {
+      x: 6, y: y + 5,
+      fill: "#718075",
+      "font-size": 14
+    }, db67FormatWeight(weight));
+  }
+
+  const xs = points.map((_, i) =>
+    points.length === 1
+      ? 345
+      : 65 + 560 * i / (points.length - 1)
+  );
+
+  const ys = values.map(value =>
+    20 + (high - value) / (high - low) * 165
+  );
+
+  if (points.length > 1) {
+    add("polyline", {
+      points: xs.map(
+        (x, i) => x + "," + ys[i]
+      ).join(" "),
+      fill: "none",
+      stroke: "#3a7c5b",
+      "stroke-width": 4,
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round"
+    });
+  }
+
+  // En prick för varje vägning
+  points.forEach((point, i) => {
+    const circle = add("circle", {
+      cx: xs[i],
+      cy: ys[i],
+      r: 5,
+      fill: "#315f49"
+    });
+
+    const title =
+      document.createElementNS(ns, "title");
+
+    title.textContent =
+      db67FormatDate(point.weighed_on) +
+      ": " +
+      db67FormatWeight(point.weight_kg) +
+      " kg";
+
+    circle.append(title);
+  });
+
+  add("text", {
+    x: 65, y: 225,
+    fill: "#718075",
+    "font-size": 14
+  }, db67FormatDate(points[0].weighed_on));
+
+  if (points.length > 1) {
+    add("text", {
+      x: 625, y: 225,
+      fill: "#718075",
+      "font-size": 14,
+      "text-anchor": "end"
+    }, db67FormatDate(
+      points[points.length - 1].weighed_on
+    ));
+  }
+
+  holder.append(svg);
+}
+
+// Visa vikthistorik med knappar
+function db67ShowHistory(rows) {
+  const holder = db67El("db67-history");
+  holder.replaceChildren();
+
+  if (rows.length === 0) {
+    holder.textContent =
+      "Inga vägningar registrerade ännu.";
+    return;
+  }
+
+  for (const row of rows) {
+    const record = document.createElement("div");
+    record.className = "db67-record";
+
+    const title = document.createElement("strong");
+    title.textContent =
+      db67FormatWeight(row.weight_kg) + " kg";
+
+    const date = document.createElement("small");
+    date.textContent =
+      db67FormatDate(row.weighed_on);
+
+    record.append(title, date);
+
+    if (row.notes) {
+      const note = document.createElement("p");
+      note.textContent = row.notes;
+      record.append(note);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "db67-actions";
+
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.textContent = "✏️ Redigera";
+    edit.className = "secondary";
+
+    edit.addEventListener("click", () => {
+      db67EditId = row.id;
+
+      db67El("db67-date").value = row.weighed_on;
+      db67El("db67-weight").value =
+        db67FormatWeight(row.weight_kg);
+      db67El("db67-notes").value = row.notes || "";
+
+      db67El("db67-save").textContent =
+        "Spara ändringar";
+
+      db67El("db67-cancel").hidden = false;
+      db67El("db67-entry-panel").open = true;
+
+      db67El("db67-weight").focus();
+    });
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "🗑️ Radera";
+    remove.className = "db67-delete";
+
+    remove.addEventListener("click", async () => {
+      const petId = openPetId;
+      const userId = shownUserId;
+
+      if (!petId || !userId) return;
+
+      if (!confirm(
+        "Vill du radera vägningen från " +
+        db67FormatDate(row.weighed_on) + "?"
+      )) return;
+
+      remove.disabled = true;
+
+      try {
+        const { error } = await supabase
+          .from("pet_weights")
+          .delete()
+          .eq("id", row.id)
+          .eq("pet_id", petId)
+          .eq("user_id", userId)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+
+        if (
+          openPetId !== petId ||
+          shownUserId !== userId
+        ) return;
+
+        if (db67EditId === row.id) {
+          db67ResetForm();
+          db67El("db67-entry-panel").open = false;
+        }
+
+        await db67LoadWeights();
+        db67El("db67-status").textContent =
+          "Vägningen har raderats.";
+
+      } catch (error) {
+        db67El("db67-status").textContent =
+          "Kunde inte radera: " + error.message;
+      } finally {
+        remove.disabled = false;
+      }
+    });
+
+    actions.append(edit, remove);
+    record.append(actions);
+    holder.append(record);
+  }
+}
+
+// Hämta alla vägningar för det öppna djuret
+async function db67LoadWeights() {
+  const petId = openPetId;
+  const userId = shownUserId;
+
+  if (!petId || !userId) return;
+
+  const request = ++db67Request;
+
+  db67El("db67-status").textContent =
+    "Hämtar vikthistorik...";
+
+  const { data, error } = await supabase
+    .from("pet_weights")
+    .select(
+      "id, weighed_on, weight_kg, notes, created_at"
+    )
+    .eq("pet_id", petId)
+    .eq("user_id", userId)
+    .order("weighed_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(250);
+
+  if (
+    request !== db67Request ||
+    openPetId !== petId ||
+    shownUserId !== userId
+  ) return;
+
+  if (error) {
+    db67El("db67-status").textContent =
+      "Kunde inte hämta vikten: " + error.message;
+    return;
+  }
+
+  const rows = data || [];
+
+  db67LatestPetId = petId;
+  db67LatestWeight = rows.length
+    ? Number(rows[0].weight_kg)
+    : null;
+
+  db67El("db67-latest").textContent =
+    db67LatestWeight === null
+      ? "Ingen vikt ännu"
+      : db67FormatWeight(db67LatestWeight) + " kg";
+
+  if (rows.length >= 2) {
+    const difference =
+      Number(rows[0].weight_kg) -
+      Number(rows[1].weight_kg);
+
+    db67El("db67-change").textContent =
+      (difference > 0 ? "+" : "") +
+      db67FormatWeight(difference) + " kg";
+  } else {
+    db67El("db67-change").textContent = "–";
+  }
+
+  db67UpdateProfileFact();
+  db67DrawChart(rows);
+  db67ShowHistory(rows);
+
+  db67El("db67-status").textContent = "";
+
+  if (rows.length === 250) {
+    db67El("db67-status").textContent =
+      "Visar de senaste 250 vägningarna.";
+  }
+}
+
+// Spara en ny vägning eller redigera en gammal
+db67El("db67-form")
+  .addEventListener("submit", async event => {
+
+    event.preventDefault();
+
+    const petId = openPetId;
+    const userId = shownUserId;
+
+    if (!petId || !userId) return;
+
+    const date = db67El("db67-date").value;
+
+    const weightText = db67El("db67-weight")
+      .value.trim().replace(",", ".");
+
+    const weight = Number(weightText);
+
+    const notes = db67El("db67-notes")
+      .value.trim();
+
+    if (
+      !/^\d+(\.\d{1,3})?$/.test(weightText) ||
+      weight <= 0 ||
+      weight > 1000
+    ) {
+      db67El("db67-status").textContent =
+        "Ange en giltig vikt, exempelvis 4,85.";
+      return;
+    }
+
+    if (!date || date > db67Today()) {
+      db67El("db67-status").textContent =
+        "Välj ett giltigt datum, inte i framtiden.";
+      return;
+    }
+
+    const editId = db67EditId;
+    const button = db67El("db67-save");
+    button.disabled = true;
+
+    const values = {
+      weighed_on: date,
+      weight_kg: weight,
+      notes: notes || null
+    };
+
+    try {
+      let query;
+
+      if (editId) {
+        query = supabase
+          .from("pet_weights")
+          .update(values)
+          .eq("id", editId)
+          .eq("pet_id", petId)
+          .eq("user_id", userId);
+      } else {
+        query = supabase
+          .from("pet_weights")
+          .insert({
+            ...values,
+            pet_id: petId,
+            user_id: userId
+          });
+      }
+
+      const { error } = await query
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      if (
+        openPetId !== petId ||
+        shownUserId !== userId
+      ) return;
+
+      db67ResetForm();
+      db67El("db67-entry-panel").open = false;
+
+      await db67LoadWeights();
+
+      db67El("db67-status").textContent =
+        editId
+          ? "Vägningen har uppdaterats! ✅"
+          : "Ny vikt har sparats! ✅";
+
+    } catch (error) {
+      db67El("db67-status").textContent =
+        "Kunde inte spara: " + error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+// Avbryt redigeringen
+db67El("db67-cancel")
+  .addEventListener("click", () => {
+    db67ResetForm();
+    db67El("db67-entry-panel").open = false;
+  });
+
 // ===== DJURDAGBOKEN 6.1 =====
 
 // Flytta det befintliga formuläret till toppen
@@ -2637,6 +3379,7 @@ async function openPetProfile(petId) {
   }
 
   openPetId = pet.id;
+  db67PreparePet(pet.id);
 
   document.getElementById("profile-name")
     .textContent = "🐾 " + pet.name;
@@ -2678,11 +3421,15 @@ showPetPhoto(
   "🐾"
 );
 
-
   showMessage("");
   
-  // Öppna kalendern för det valda djuret
+// Öppna kalendern för det valda djuret
 await db5OpenCalendar(pet.id);
+
+// Hämta djurets vikthistorik
+if (openPetId === pet.id && shownUserId === userId) {
+  await db67LoadWeights();
+}
   
 }
 
@@ -2704,7 +3451,6 @@ await loadPets();
 await db65LoadTodos();
 
   });
-
 
 // DJURDAGBOKEN 6.3 - RADERA DJUR FRÅN PROFILEN
 
