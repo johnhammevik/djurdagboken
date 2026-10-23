@@ -1562,6 +1562,73 @@ label {
   background: #f1d5d5;
 }
 
+    
+/* DJURDAGBOKEN 6.4 - HÄNDELSEMENY */
+
+.db64-event-menu {
+  width: fit-content;
+  max-width: 100%;
+  margin: 12px 0 0 auto;
+}
+
+.db64-event-menu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  background: #e7f0e8;
+  color: #315f49;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.db64-event-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.db64-event-menu > summary:hover {
+  background: #d9e8dc;
+}
+
+.db64-event-menu > summary:focus-visible {
+  outline: 3px solid #79b993;
+  outline-offset: 2px;
+}
+
+.db64-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.db64-event-actions .db51-edit-event,
+.db64-event-actions .db53-delete-event {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 40px;
+  padding: 9px 12px;
+  margin: 0;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.db64-event-actions .db51-edit-event {
+  background: #e5eee7;
+  color: #315f49;
+}
+
+.db64-event-actions .db53-delete-event {
+  background: #fae8e8;
+  color: #973c3c;
+}
 
   </style>
 </head>
@@ -3131,8 +3198,28 @@ deleteEvent.addEventListener("click", () => {
   db53DeleteEvent(event.id, event.title);
 });
 
-// Visa båda knapparna på händelsen
-card.append(editEvent, deleteEvent);
+ // DJURDAGBOKEN 6.4 - UTFÄLLBAR HÄNDELSEMENY
+
+const eventMenu = document.createElement("details");
+eventMenu.className = "db64-event-menu";
+
+const menuTitle = document.createElement("summary");
+menuTitle.textContent = "⋯ Alternativ";
+menuTitle.setAttribute(
+  "aria-label",
+  "Fler alternativ för " + event.title
+);
+
+const menuActions = document.createElement("div");
+menuActions.className = "db64-event-actions";
+
+// Lägg de befintliga knapparna i menyn
+menuActions.append(editEvent, deleteEvent);
+
+eventMenu.append(menuTitle, menuActions);
+
+// Visa menyn på händelsekortet
+card.append(eventMenu);
 eventList.append(card);
 
   }
