@@ -1728,6 +1728,49 @@ label {
   outline: 3px solid #79b993;
   outline-offset: -3px;
 }
+    
+/* DJURDAGBOKEN 6.6 - UPPGIFTSFLIKAR */
+
+#db66-tabs {
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  margin: 0 14px 15px;
+  background: #e8efe7;
+  border-radius: 14px;
+}
+
+#db66-tabs button {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: #315f49;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#db66-tabs button.db66-active {
+  background: #315f49;
+  color: white;
+  box-shadow: 0 3px 10px #315f4920;
+}
+
+#db66-tabs button:focus-visible {
+  outline: 3px solid #79b993;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  #db66-tabs button {
+    font-size: 13px;
+    padding: 11px 6px;
+  }
+}
 
   </style>
 </head>
@@ -1793,10 +1836,31 @@ label {
 <details id="db65-todo-panel" class="db65-todo-panel">
 
   <summary>
-    <span>✅ Att göra</span>
+    <span>🐾 Mina uppgifter</span>
     <span id="db65-todo-count">Laddar...</span>
   </summary>
+  
+<!-- DJURDAGBOKEN 6.6 - UPPGIFTSFLIKAR -->
 
+<div id="db66-tabs"
+     role="group"
+     aria-label="Visa uppgifter">
+
+  <button id="db66-tab-todo"
+          type="button"
+          class="db66-active"
+          aria-pressed="true">
+    Att göra
+  </button>
+
+  <button id="db66-tab-done"
+          type="button"
+          aria-pressed="false">
+    Avklarade
+  </button>
+
+</div>
+  
   <div id="db65-todo-list"></div>
 
   <p id="db65-todo-status"
@@ -4090,6 +4154,52 @@ await db5Load();
 // ===== DJURDAGBOKEN 6.5: ATT GÖRA =====
 
 let db65Request = 0;
+    
+// ===== DJURDAGBOKEN 6.6: VÄXLA FLIKAR =====
+
+// Vilken flik som visas just nu
+let db66Tab = "todo";
+
+const db66TodoButton =
+  document.getElementById("db66-tab-todo");
+
+const db66DoneButton =
+  document.getElementById("db66-tab-done");
+
+function db66ShowTab(tab) {
+  db66Tab = tab;
+
+  const showTodo = tab === "todo";
+
+  db66TodoButton.classList.toggle(
+    "db66-active", showTodo
+  );
+
+  db66DoneButton.classList.toggle(
+    "db66-active", !showTodo
+  );
+
+  db66TodoButton.setAttribute(
+    "aria-pressed", String(showTodo)
+  );
+
+  db66DoneButton.setAttribute(
+    "aria-pressed", String(!showTodo)
+  );
+
+  // Hämta uppgifter för den valda fliken
+  db65LoadTodos();
+}
+
+// Klick på Att göra
+db66TodoButton.addEventListener("click", () => {
+  db66ShowTab("todo");
+});
+
+// Klick på Avklarade
+db66DoneButton.addEventListener("click", () => {
+  db66ShowTab("done");
+});
 
 async function db65LoadTodos() {
   const userId = shownUserId;
@@ -4115,7 +4225,7 @@ async function db65LoadTodos() {
         )
         .eq("user_id", userId)
         .eq("is_checkable", true)
-        .eq("is_done", false)
+        .eq("is_done", db66Tab === "done")
         .order("event_date", { ascending: true })
         .limit(100),
 
@@ -4154,14 +4264,22 @@ async function db65LoadTodos() {
   const categories = categoriesResult.data || [];
 
   const total = tasksResult.count ?? tasks.length;
-
-  countEl.textContent = total + " kvar";
+  
+  c
+countEl.textContent =
+  db66Tab === "done"
+    ? total + " klara"
+    : total + " kvar";
 
   list.replaceChildren();
 
   if (tasks.length === 0) {
     const empty = document.createElement("p");
-    empty.textContent = "🎉 Alla uppgifter är klara!";
+empty.textContent =
+  db66Tab === "done"
+    ? "Inga avklarade uppgifter ännu."
+    : "🎉 Alla uppgifter är klara!";
+
     list.append(empty);
     return;
   }
@@ -4188,6 +4306,9 @@ async function db65LoadTodos() {
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+
+    // Visa en bock på uppgifter som är klara
+checkbox.checked = db66Tab === "done";
 
     const content = document.createElement("span");
     content.className = "db65-task-content";
@@ -4220,40 +4341,51 @@ async function db65LoadTodos() {
     content.append(title, date);
     label.append(checkbox, content);
 
-    checkbox.addEventListener("change", async () => {
-      if (!checkbox.checked) return;
+    
+// DJURDAGBOKEN 6.6 - BOCKA AV OCH ÅNGRA
 
-      checkbox.disabled = true;
+checkbox.addEventListener("change", async () => {
 
-      try {
-        const { error } = await supabase
-          .from("pet_events")
-          .update({ is_done: true })
-          .eq("id", task.id)
-          .eq("pet_id", task.pet_id)
-          .eq("user_id", userId)
-          .eq("is_checkable", true)
-          .eq("is_done", false)
-          .select("id")
-          .single();
+  const completed = checkbox.checked;
 
-        if (error) throw error;
+  checkbox.disabled = true;
 
-        if (shownUserId !== userId) return;
+  try {
+    const { error } = await supabase
+      .from("pet_events")
+      .update({ is_done: completed })
+      .eq("id", task.id)
+      .eq("pet_id", task.pet_id)
+      .eq("user_id", userId)
+      .eq("is_checkable", true)
+      .eq("is_done", !completed)
+      .select("id")
+      .single();
 
-        await db65LoadTodos();
+    if (error) throw error;
 
-        status.textContent =
-          "Uppgiften markerades som klar! ✅";
+    if (shownUserId !== userId) return;
 
-      } catch (error) {
-        checkbox.checked = false;
-        status.textContent =
-          "Kunde inte spara: " + error.message;
-      } finally {
-        checkbox.disabled = false;
-      }
-    });
+    // Uppdatera listan efter ändringen
+    await db65LoadTodos();
+
+    status.textContent = completed
+      ? "Uppgiften är markerad som klar! ✅"
+      : "Uppgiften är tillbaka i Att göra-listan.";
+
+  } catch (error) {
+
+    // Återställ bocken om något gick fel
+    checkbox.checked = !completed;
+
+    status.textContent =
+      "Kunde inte spara: " + error.message;
+
+  } finally {
+    checkbox.disabled = false;
+  }
+
+});
 
     list.append(label);
   }
