@@ -1479,6 +1479,90 @@ label {
   }
 }
 
+    
+/* DJURDAGBOKEN 6.3 */
+
+/* Avbockningsrutor */
+.db63-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  background: #edf5ed;
+  border-radius: 13px;
+  cursor: pointer;
+  color: #315f49;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.db63-checkbox-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: #315f49;
+}
+
+.db63-checkbox-row span {
+  flex: 1;
+}
+
+.db63-status {
+  background: #f2f6f0;
+}
+
+.db63-completed {
+  background: #f1f7f0;
+}
+
+.db63-completed > strong,
+.db63-completed .db52-upcoming-info strong {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.db52-upcoming-card {
+  flex-wrap: wrap;
+}
+
+.db52-upcoming-card .db63-status {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* Djurinställningar */
+.db63-settings {
+  margin-top: 35px;
+  padding: 17px;
+  background: #f8faf7;
+  border: 1px solid #e0e9df;
+  border-radius: 16px;
+}
+
+.db63-settings summary {
+  cursor: pointer;
+  color: #315f49;
+  font-weight: 600;
+}
+
+.db63-warning {
+  color: #805252;
+  font-size: 13px;
+}
+
+.db63-danger-button {
+  background: #f8e7e7;
+  color: #963b3b;
+}
+
+.db63-danger-button:hover {
+  background: #f1d5d5;
+}
+
+
   </style>
 </head>
 
@@ -1849,6 +1933,20 @@ label {
         placeholder="Skriv något om händelsen..."
       ></textarea>
 
+<!-- Valfri avbockningsruta -->
+
+<label class="db63-checkbox-row">
+  <input
+    type="checkbox"
+    id="db63-is-checkable"
+  >
+
+  <span>
+    Visa en ruta så händelsen kan bockas av
+    när den är klar
+  </span>
+</label>
+
       <button type="submit" id="db51-save-event">
   Spara händelse
 </button>
@@ -1924,6 +2022,29 @@ label {
 
   </form>
 
+<!-- DJURDAGBOKEN 6.3: DJURINSTÄLLNINGAR -->
+
+<details id="db63-pet-settings" class="db63-settings">
+  <summary>⚙️ Inställningar för djuret</summary>
+
+  <p>
+    Här kan du hantera djurprofilen.
+  </p>
+
+  <p class="db63-warning">
+    Om du raderar djuret försvinner även dess
+    sparade kalenderhändelser och kategorier.
+    Det går inte att ångra.
+  </p>
+
+  <button
+    id="db63-delete-pet"
+    type="button"
+    class="db63-danger-button">
+    🗑️ Radera djurprofil permanent
+  </button>
+</details>
+  
 </section>
 
 
@@ -2048,32 +2169,7 @@ viewButton.addEventListener("click", () => {
 
 info.append(viewButton);
 
-
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.className = "delete-pet";
-    removeButton.textContent = "Ta bort";
-
-    removeButton.addEventListener("click", async () => {
-      if (!confirm("Vill du ta bort " + pet.name + "?")) {
-        return;
-      }
-
-      const { error } = await supabase
-        .from("pets")
-        .delete()
-        .eq("id", pet.id)
-        .eq("user_id", userId);
-
-      if (error) {
-        showMessage("Fel: " + error.message);
-      } else {
-        showMessage(pet.name + " har tagits bort.");
-        await loadPets();
-      }
-    });
-
-    card.append(avatar, info, removeButton);
+    card.append(avatar, info);
     petList.append(card);
   });
 }
@@ -2359,6 +2455,96 @@ db5.requestNumber++;
     await loadPets();
   });
 
+
+// DJURDAGBOKEN 6.3 - RADERA DJUR FRÅN PROFILEN
+
+document.getElementById("db63-delete-pet")
+  .addEventListener("click", async () => {
+
+    const petId = openPetId;
+    const userId = shownUserId;
+
+    if (!petId || !userId) return;
+
+    // Kontrollera vilket djur som är öppet
+    const { data: pet, error: readError } =
+      await supabase
+        .from("pets")
+        .select("id, name")
+        .eq("id", petId)
+        .eq("user_id", userId)
+        .single();
+
+    if (readError) {
+      showMessage(readError.message);
+      return;
+    }
+
+    if (openPetId !== petId ||
+        shownUserId !== userId) return;
+
+    // Användaren måste skriva djurets namn
+    const answer = prompt(
+      "Du håller på att radera " + pet.name +
+      " och dess kalenderhistorik.\n\n" +
+      "Skriv djurets namn för att bekräfta:"
+    );
+
+    if (answer === null) return;
+
+    if (answer.trim() !== pet.name) {
+      showMessage("Namnet stämde inte. Ingenting raderades.");
+      return;
+    }
+
+    if (!confirm(
+      "Vill du verkligen radera " + pet.name +
+      " permanent? Detta går inte att ångra."
+    )) return;
+
+    const button =
+      document.getElementById("db63-delete-pet");
+
+    button.disabled = true;
+
+    try {
+      const { error } = await supabase
+        .from("pets")
+        .delete()
+        .eq("id", petId)
+        .eq("user_id", userId)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      if (shownUserId !== userId ||
+          openPetId !== petId) return;
+
+      // Stäng profilen och återgå till djurfamiljen
+      db5.petId = null;
+      db5.requestNumber++;
+      openPetId = null;
+
+      document.getElementById("db63-pet-settings")
+        .open = false;
+
+      profileSection.hidden = true;
+      appSection.hidden = false;
+
+      await loadPets();
+
+      showMessage(pet.name + " har raderats.");
+
+    } catch (error) {
+      showMessage(
+        "Kunde inte radera djuret: " + error.message
+      );
+    } finally {
+      button.disabled = false;
+    }
+  });
+    
 // Spara profilinformationen
 profileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2653,7 +2839,7 @@ const [categoryResult, eventResult, upcomingResult] =
     // Händelser för kalenderns aktuella månad
     supabase
       .from("pet_events")
-      .select("id, title, event_date, notes, category_id")
+      .select("id, title, event_date, notes, category_id, is_checkable, is_done")
       .eq("pet_id", petId)
       .eq("user_id", userId)
       .gte("event_date", firstDay)
@@ -2663,7 +2849,7 @@ const [categoryResult, eventResult, upcomingResult] =
     // Kommande händelser, även i andra månader
     supabase
       .from("pet_events")
-      .select("id, title, event_date, category_id")
+      .select("id, title, event_date, category_id, is_checkable, is_done")
       .eq("pet_id", petId)
       .eq("user_id", userId)
       .gte("event_date", todayString)
@@ -2915,7 +3101,15 @@ filters.append(chip);
       card.append(note);
     }
 
-    
+// Visa avbockning om användaren har valt det
+if (event.is_checkable) {
+  card.append(db63MakeDoneCheckbox(event));
+
+  if (event.is_done) {
+    card.classList.add("db63-completed");
+  }
+}
+
 // Knapp för att redigera händelsen
 const editEvent = document.createElement("button");
 editEvent.type = "button";
@@ -3060,6 +3254,8 @@ function db51EditEvent(eventId) {
   db5El("db5-event-date").value = item.event_date;
   db5El("db5-event-category").value = item.category_id;
   db5El("db5-event-notes").value = item.notes || "";
+  db5El("db63-is-checkable").checked =
+  Boolean(item.is_checkable);
 
   db5El("db51-save-event").textContent =
     "Spara ändringar";
@@ -3189,8 +3385,18 @@ function db52RenderUpcoming() {
       (category?.name || "Övrigt");
 
     info.append(title, date);
-    card.append(icon, info);
-    container.append(card);
+    
+card.append(icon, info);
+
+if (item.is_checkable) {
+  card.append(db63MakeDoneCheckbox(item));
+
+  if (item.is_done) {
+    card.classList.add("db63-completed");
+  }
+}
+
+container.append(card);
   }
 }
 
@@ -3419,6 +3625,73 @@ db5El("db54-delete-category")
     }
   });
 
+    
+// DJURDAGBOKEN 6.3 - MARKERA HÄNDELSE SOM KLAR
+
+function db63MakeDoneCheckbox(item) {
+
+  const label = document.createElement("label");
+  label.className = "db63-checkbox-row db63-status";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = Boolean(item.is_done);
+
+  const text = document.createElement("span");
+  text.textContent = item.is_done
+    ? "Klart!"
+    : "Markera som klar";
+
+  label.append(checkbox, text);
+
+  checkbox.addEventListener("change", async () => {
+
+    const completed = checkbox.checked;
+    const petId = db5.petId;
+    const userId = shownUserId;
+
+    if (!petId || !userId) {
+      checkbox.checked = !completed;
+      return;
+    }
+
+    checkbox.disabled = true;
+
+    try {
+      const { error } = await supabase
+        .from("pet_events")
+        .update({ is_done: completed })
+        .eq("id", item.id)
+        .eq("pet_id", petId)
+        .eq("user_id", userId)
+        .eq("is_checkable", true)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      if (db5.petId !== petId ||
+          shownUserId !== userId) return;
+
+      await db5Load();
+
+      db5Status(
+        completed
+          ? "Händelsen är markerad som klar! ✅"
+          : "Händelsen är inte längre markerad som klar."
+      );
+
+    } catch (error) {
+      checkbox.checked = !completed;
+      db5Status("Kunde inte spara: " + error.message);
+    } finally {
+      checkbox.disabled = false;
+    }
+  });
+
+  return label;
+}
+
 // Föregående månad
 db5El("db5-prev").addEventListener("click", () => {
   db5.month = new Date(
@@ -3531,12 +3804,24 @@ if (
       
 const editingId = db51EditingEventId;
 
+const isCheckable =
+  db5El("db63-is-checkable").checked;
+
 const changes = {
   category_id: categoryId,
   title: title,
   event_date: date,
-  notes: notes || null
+  notes: notes || null,
+
+  // Om händelsen ska ha en avbockningsruta
+  is_checkable: isCheckable,
+
+  // Behåll klar-status vid redigering,
+  // men återställ den om rutan tas bort
+  is_done: isCheckable &&
+    (originalEvent?.is_done === true)
 };
+
 
 let result;
 
