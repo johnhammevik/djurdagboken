@@ -1630,6 +1630,105 @@ label {
   color: #973c3c;
 }
 
+    
+/* DJURDAGBOKEN 6.5 - ATT GÖRA */
+
+.db65-todo-panel {
+  background: #f5f9f3;
+  border: 1px solid #dce8dc;
+  border-radius: 18px;
+  padding: 0;
+  margin: 20px 0;
+  overflow: hidden;
+}
+
+.db65-todo-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 17px;
+  cursor: pointer;
+  color: #315f49;
+  font-weight: 650;
+  list-style: none;
+}
+
+.db65-todo-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+#db65-todo-count {
+  font-size: 12px;
+  background: #e0ece0;
+  border-radius: 30px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+#db65-todo-list {
+  padding: 0 14px 14px;
+  max-height: 470px;
+  overflow-y: auto;
+}
+
+.db65-task {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px;
+  margin: 0 0 9px;
+  background: white;
+  border: 1px solid #e2e9df;
+  border-left: 4px solid #79a889;
+  border-radius: 13px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.db65-task input[type="checkbox"] {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: #315f49;
+}
+
+.db65-task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.db65-task-content strong {
+  display: block;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.db65-task-content small {
+  display: block;
+  color: #738074;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.db65-overdue {
+  color: #b34c4c;
+  font-weight: 650;
+}
+
+#db65-todo-status {
+  margin: 0 14px 14px;
+  font-size: 13px;
+  color: #47775a;
+}
+
+.db65-todo-panel > summary:focus-visible {
+  outline: 3px solid #79b993;
+  outline-offset: -3px;
+}
+
   </style>
 </head>
 
@@ -1687,6 +1786,24 @@ label {
 
   <!-- Här visas användarens djur direkt -->
   <div id="pet-list"></div>
+
+  
+<!-- DJURDAGBOKEN 6.5: ATT GÖRA -->
+
+<details id="db65-todo-panel" class="db65-todo-panel">
+
+  <summary>
+    <span>✅ Att göra</span>
+    <span id="db65-todo-count">Laddar...</span>
+  </summary>
+
+  <div id="db65-todo-list"></div>
+
+  <p id="db65-todo-status"
+     role="status"
+     aria-live="polite"></p>
+
+</details>
 
   <!-- Utfällbar ruta för nya djur -->
   <details id="add-pet-panel">
@@ -2518,8 +2635,10 @@ db5.requestNumber++;
     
     openPetId = null;
 
-    showMessage("");
-    await loadPets();
+showMessage("");
+await loadPets();
+await db65LoadTodos();
+
   });
 
 
@@ -3966,6 +4085,186 @@ await db5Load();
       button.disabled = false;
     }
   });
+
+    
+// ===== DJURDAGBOKEN 6.5: ATT GÖRA =====
+
+let db65Request = 0;
+
+async function db65LoadTodos() {
+  const userId = shownUserId;
+  if (!userId) return;
+
+  const request = ++db65Request;
+
+  const list = document.getElementById("db65-todo-list");
+  const countEl = document.getElementById("db65-todo-count");
+  const status = document.getElementById("db65-todo-status");
+
+  status.textContent = "";
+
+  // Hämta ofärdiga uppgifter, djur och kategorier
+  const [tasksResult, petsResult, categoriesResult] =
+    await Promise.all([
+
+      supabase
+        .from("pet_events")
+        .select(
+          "id, pet_id, title, event_date, category_id",
+          { count: "exact" }
+        )
+        .eq("user_id", userId)
+        .eq("is_checkable", true)
+        .eq("is_done", false)
+        .order("event_date", { ascending: true })
+        .limit(100),
+
+      supabase
+        .from("pets")
+        .select("id, name")
+        .eq("user_id", userId),
+
+      supabase
+        .from("pet_categories")
+        .select("id, name, color, icon")
+        .eq("user_id", userId)
+
+    ]);
+
+  // Visa inte gamla resultat efter konto-byte
+  if (
+    shownUserId !== userId ||
+    request !== db65Request
+  ) return;
+
+  const error =
+    tasksResult.error ||
+    petsResult.error ||
+    categoriesResult.error;
+
+  if (error) {
+    status.textContent =
+      "Kunde inte hämta uppgifter: " + error.message;
+    countEl.textContent = "Fel";
+    return;
+  }
+
+  const tasks = tasksResult.data || [];
+  const pets = petsResult.data || [];
+  const categories = categoriesResult.data || [];
+
+  const total = tasksResult.count ?? tasks.length;
+
+  countEl.textContent = total + " kvar";
+
+  list.replaceChildren();
+
+  if (tasks.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "🎉 Alla uppgifter är klara!";
+    list.append(empty);
+    return;
+  }
+
+  const now = new Date();
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0")
+  ].join("-");
+
+  // Skapa ett kort för varje ofärdig uppgift
+  for (const task of tasks) {
+
+    const pet = pets.find(p => p.id === task.pet_id);
+    const category = categories.find(
+      c => c.id === task.category_id
+    );
+
+    const label = document.createElement("label");
+    label.className = "db65-task";
+    label.style.borderLeftColor =
+      category?.color || "#79a889";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+
+    const content = document.createElement("span");
+    content.className = "db65-task-content";
+
+    const title = document.createElement("strong");
+    title.textContent =
+      (category?.icon || "🐾") + " " + task.title;
+
+    const date = document.createElement("small");
+
+    const formattedDate = new Date(
+      task.event_date + "T12:00:00"
+    ).toLocaleDateString("sv-SE", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+
+    date.textContent =
+      (pet?.name || "Okänt djur") +
+      " · " + formattedDate;
+
+    if (task.event_date < today) {
+      const overdue = document.createElement("span");
+      overdue.className = "db65-overdue";
+      overdue.textContent = " · Försenad";
+      date.append(overdue);
+    }
+
+    content.append(title, date);
+    label.append(checkbox, content);
+
+    checkbox.addEventListener("change", async () => {
+      if (!checkbox.checked) return;
+
+      checkbox.disabled = true;
+
+      try {
+        const { error } = await supabase
+          .from("pet_events")
+          .update({ is_done: true })
+          .eq("id", task.id)
+          .eq("pet_id", task.pet_id)
+          .eq("user_id", userId)
+          .eq("is_checkable", true)
+          .eq("is_done", false)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+
+        if (shownUserId !== userId) return;
+
+        await db65LoadTodos();
+
+        status.textContent =
+          "Uppgiften markerades som klar! ✅";
+
+      } catch (error) {
+        checkbox.checked = false;
+        status.textContent =
+          "Kunde inte spara: " + error.message;
+      } finally {
+        checkbox.disabled = false;
+      }
+    });
+
+    list.append(label);
+  }
+
+  if (total > tasks.length) {
+    const more = document.createElement("p");
+    more.textContent =
+      "Visar de första 100 uppgifterna.";
+    list.append(more);
+  }
+}
     
     // Logga in
     authForm.addEventListener("submit", async (event) => {
@@ -4041,8 +4340,13 @@ function showUser(user) {
     document.getElementById("welcome")
       .textContent = "Inloggad som: " + user.email;
 
-    // Hämta djuren efter inloggningen
-    setTimeout(() => loadPets(), 0);
+// Hämta både djuren och att-göra-listan
+// när användaren loggar in
+setTimeout(async () => {
+  await loadPets();
+  await db65LoadTodos();
+}, 0);
+
   } else {
     petList.replaceChildren();
   }
