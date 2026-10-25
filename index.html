@@ -2005,6 +2005,9 @@ label {
   
 <!-- DJURDAGBOKEN 6.6 - UPPGIFTSFLIKAR -->
 
+
+<!-- DJURDAGBOKEN - TRE UPPGIFTSFLIKAR -->
+
 <div id="db66-tabs"
      role="group"
      aria-label="Visa uppgifter">
@@ -2013,13 +2016,19 @@ label {
           type="button"
           class="db66-active"
           aria-pressed="true">
-    Att göra
+    ☀️ Idag
+  </button>
+
+  <button id="db66-tab-all"
+          type="button"
+          aria-pressed="false">
+    📋 Alla
   </button>
 
   <button id="db66-tab-done"
           type="button"
           aria-pressed="false">
-    Avklarade
+    ✅ Klara
   </button>
 
 </div>
@@ -5472,52 +5481,60 @@ await db5Load();
 
 let db65Request = 0;
     
-// ===== DJURDAGBOKEN 6.6: VÄXLA FLIKAR =====
 
-// Vilken flik som visas just nu
-let db66Tab = "todo";
+// ===== DJURDAGBOKEN - TRE UPPGIFTSFLIKAR =====
+
+// Idag visas automatiskt när sidan öppnas
+let db66Tab = "today";
 
 const db66TodoButton =
   document.getElementById("db66-tab-todo");
+
+const db66AllButton =
+  document.getElementById("db66-tab-all");
 
 const db66DoneButton =
   document.getElementById("db66-tab-done");
 
 function db66ShowTab(tab) {
+
   db66Tab = tab;
 
-  const showTodo = tab === "todo";
+  const buttons = {
+    today: db66TodoButton,
+    all: db66AllButton,
+    done: db66DoneButton
+  };
 
-  db66TodoButton.classList.toggle(
-    "db66-active", showTodo
-  );
+  for (const [name, button] of Object.entries(buttons)) {
 
-  db66DoneButton.classList.toggle(
-    "db66-active", !showTodo
-  );
+    const active = name === tab;
 
-  db66TodoButton.setAttribute(
-    "aria-pressed", String(showTodo)
-  );
+    button.classList.toggle(
+      "db66-active", active
+    );
 
-  db66DoneButton.setAttribute(
-    "aria-pressed", String(!showTodo)
-  );
+    button.setAttribute(
+      "aria-pressed",
+      String(active)
+    );
+  }
 
-  // Hämta uppgifter för den valda fliken
+  // Ladda om listan för den valda fliken
   db65LoadTodos();
 }
 
-// Klick på Att göra
 db66TodoButton.addEventListener("click", () => {
-  db66ShowTab("todo");
+  db66ShowTab("today");
 });
 
-// Klick på Avklarade
+db66AllButton.addEventListener("click", () => {
+  db66ShowTab("all");
+});
+
 db66DoneButton.addEventListener("click", () => {
   db66ShowTab("done");
 });
-
 
 // =============================================
 // DJURDAGBOKEN 6.8
@@ -5543,8 +5560,11 @@ async function db65LoadTodos() {
 
   status.textContent = "Hämtar uppgifter...";
 
-  const today = db68Today();
-  const historyStart = db68MoveDate(today, -365);
+const today = db68Today();
+const historyStart = db68MoveDate(today, -365);
+
+// Visa återkommande uppgifter 30 dagar framåt
+const futureEnd = db68MoveDate(today, 30);
 
   // Hämta uppgifter, djur och kategorier
   const [
@@ -5620,7 +5640,7 @@ async function db65LoadTodos() {
       .eq("user_id", userId)
       .in("event_id", ids)
       .gte("occurrence_date", historyStart)
-      .lte("occurrence_date", today)
+      .lte("occurrence_date", futureEnd)
       .limit(1000);
 
     if (!isCurrent()) return;
@@ -5657,7 +5677,7 @@ async function db65LoadTodos() {
   const recurringTasks = db68Expand(
     recurring,
     historyStart,
-    today
+    futureEnd
   ).map(item => ({
     ...item,
     recurring: true,
@@ -5688,19 +5708,91 @@ async function db65LoadTodos() {
 
   const total = visibleTasks.length;
 
-  countEl.textContent = showDone
+  
+// DJURDAGBOKEN - FILTRERA TRE FLIKAR
+
+const visibleTasks = tasks
+
+  .filter(item => {
+
+    // Klara: alla avbockade uppgifter
+    if (tab === "done") {
+      return item.done;
+    }
+
+    // Idag: idag + försenade uppgifter
+    if (tab === "today") {
+      return !item.done &&
+        item.occurrence_date <= today;
+    }
+
+    // Alla: alla ofärdiga, även framtida
+    return !item.done;
+
+  })
+
+  .sort((a, b) => {
+
+    // Klara: nyaste först
+    if (tab === "done") {
+      return b.occurrence_date.localeCompare(
+        a.occurrence_date
+      );
+    }
+
+    // Idag: dagens uppgifter överst
+    if (tab === "today") {
+      const aToday = a.occurrence_date === today;
+      const bToday = b.occurrence_date === today;
+
+      if (aToday !== bToday) {
+        return aToday ? -1 : 1;
+      }
+
+      return b.occurrence_date.localeCompare(
+        a.occurrence_date
+      );
+    }
+
+    // Alla: kommande först, sedan försenade
+    const aUpcoming = a.occurrence_date >= today;
+    const bUpcoming = b.occurrence_date >= today;
+
+    if (aUpcoming !== bUpcoming) {
+      return aUpcoming ? -1 : 1;
+    }
+
+    return aUpcoming
+      ? a.occurrence_date.localeCompare(
+          b.occurrence_date
+        )
+      : b.occurrence_date.localeCompare(
+          a.occurrence_date
+        );
+  });
+
+const total = visibleTasks.length;
+
+// Antalet uppgifter visas i rubriken
+countEl.textContent =
+  tab === "done"
     ? total + " klara"
-    : total + " kvar";
+    : tab === "today"
+      ? total + " att göra"
+      : total + " öppna";
 
   list.replaceChildren();
   status.textContent = "";
 
   if (total === 0) {
     const empty = document.createElement("p");
-
-    empty.textContent = showDone
-      ? "Inga avklarade uppgifter ännu."
-      : "🎉 Alla uppgifter är klara!";
+    
+empty.textContent =
+  tab === "done"
+    ? "Inga avklarade uppgifter ännu."
+    : tab === "today"
+      ? "🎉 Inget att göra idag och inget försenat!"
+      : "Inga öppna uppgifter just nu.";
 
     list.append(empty);
     return;
@@ -5725,6 +5817,13 @@ async function db65LoadTodos() {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = task.done;
+    
+// Framtida uppgifter är bara förhandsvisning
+if (task.occurrence_date > today) {
+  checkbox.disabled = true;
+  checkbox.title =
+    "Uppgiften kan bockas av när datumet är här";
+}
 
     const content = document.createElement("span");
     content.className = "db65-task-content";
@@ -5751,6 +5850,15 @@ async function db65LoadTodos() {
     if (task.recurring) {
       date.append(" · 🔁 Återkommande");
     }
+    
+// Förtydliga när uppgiften ska göras
+if (task.occurrence_date === today) {
+  date.append(" · Idag");
+}
+
+if (task.occurrence_date > today) {
+  date.append(" · Kommande");
+}
 
     if (
       !task.done &&
