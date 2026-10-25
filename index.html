@@ -2670,6 +2670,35 @@ label {
   overflow-wrap: anywhere;
 }
 
+    
+/* DJURDAGBOKEN 7.2 - KONTOINSTÄLLNINGAR */
+
+#db72-account-panel {
+  margin-top: 20px;
+}
+
+#db72-check-account {
+  font-size: 13px;
+}
+
+#db72-delete-account {
+  background: #f7dddd;
+  color: #913b3b;
+  font-size: 14px;
+}
+
+.db72-warning {
+  font-size: 12px;
+  color: #805252;
+  line-height: 1.6;
+}
+
+#db72-account-status {
+  font-size: 13px;
+  color: #315f49;
+  overflow-wrap: anywhere;
+}
+
   </style>
 </head>
 
@@ -2917,6 +2946,43 @@ label {
 
   </details>
 
+
+<!-- DJURDAGBOKEN 7.2 - MITT KONTO -->
+
+<details id="db72-account-panel" class="db5-details">
+
+  <summary>⚙️ Mitt konto</summary>
+
+  <p>
+    Här kan du hantera ditt användarkonto.
+  </p>
+
+  <button
+    id="db72-check-account"
+    type="button"
+    class="secondary">
+    🔍 Kontrollera mina sparade uppgifter
+  </button>
+
+  <p id="db72-account-status"
+     role="status"
+     aria-live="polite"></p>
+
+  <button
+    id="db72-delete-account"
+    type="button"
+    disabled>
+    🗑️ Radera mitt konto permanent
+  </button>
+
+  <p class="db72-warning">
+    Kontoradering tar permanent bort dina djur,
+    kalenderhändelser, vikthistorik och bilder.
+    Åtgärden kan inte ångras.
+  </p>
+
+</details>
+  
   <button id="logout" class="secondary">
     Logga ut
   </button>
@@ -7274,6 +7340,113 @@ document.getElementById("db72-reset-form")
           showMessage("Kontot är skapat!");
         }
       });
+
+// DJURDAGBOKEN 7.2 - MITT KONTO
+
+const db72AccountStatus =
+  document.getElementById("db72-account-status");
+
+const db72DeleteButton =
+  document.getElementById("db72-delete-account");
+
+// Kontrollera användarens uppgifter utan att radera
+document.getElementById("db72-check-account")
+  .addEventListener("click", async () => {
+
+    db72AccountStatus.textContent =
+      "Kontrollerar kontot...";
+
+    db72DeleteButton.disabled = true;
+
+    try {
+      const { data, error } =
+        await supabase.functions.invoke(
+          "delete-my-account",
+          { body: { mode: "preview" } }
+        );
+
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error("Kontrollen misslyckades.");
+      }
+
+      db72AccountStatus.textContent =
+        "Ditt konto har " + data.pets +
+        " djur och " + data.images +
+        " lagrade bilder.";
+
+      db72DeleteButton.disabled =
+        !data.deletionEnabled;
+
+    } catch (error) {
+      db72AccountStatus.textContent =
+        "Kunde inte kontrollera kontot: " +
+        error.message;
+    }
+  });
+
+// Permanent radering - låst tills servern aktiveras
+db72DeleteButton.addEventListener(
+  "click",
+  async () => {
+
+    const { data: { user }, error: userError } =
+      await supabase.auth.getUser();
+
+    if (userError || !user?.email) return;
+
+    const email = prompt(
+      "Skriv din e-postadress för att bekräfta " +
+      "att du vill radera ditt konto:"
+    );
+
+    if (email === null) return;
+
+    const confirmation = prompt(
+      "Sista bekräftelsen!\n\n" +
+      "Skriv RADERA för att permanent ta bort " +
+      "ditt konto och alla dina uppgifter."
+    );
+
+    if (confirmation !== "RADERA") return;
+
+    db72DeleteButton.disabled = true;
+
+    try {
+      const { data, error } =
+        await supabase.functions.invoke(
+          "delete-my-account",
+          {
+            body: {
+              mode: "delete",
+              email: email.trim(),
+              confirm: confirmation
+            }
+          }
+        );
+
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error("Raderingen kunde inte bekräftas.");
+      }
+
+      // Töm webbläsarens lokala inloggningssession
+      await supabase.auth.signOut({ scope: "local" });
+
+      window.location.replace(
+        window.location.origin +
+        window.location.pathname
+      );
+
+    } catch (error) {
+      db72AccountStatus.textContent =
+        "Kunde inte slutföra raderingen. " +
+        "Kontakta administratören innan du försöker igen.";
+
+      db72DeleteButton.disabled = true;
+    }
+  }
+);
 
     // Logga ut
     document.getElementById("logout")
