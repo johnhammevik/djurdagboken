@@ -5691,23 +5691,6 @@ const futureEnd = db68MoveDate(today, 30);
     ...normalTasks,
     ...recurringTasks
   ];
-
-  const showDone = tab === "done";
-
-  const visibleTasks = tasks
-    .filter(item => item.done === showDone)
-    .sort((a, b) =>
-      showDone
-        ? b.occurrence_date.localeCompare(
-            a.occurrence_date
-          )
-        : a.occurrence_date.localeCompare(
-            b.occurrence_date
-          )
-    );
-
-  const total = visibleTasks.length;
-
   
 // DJURDAGBOKEN - FILTRERA TRE FLIKAR
 
