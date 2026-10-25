@@ -3886,6 +3886,61 @@ db5El("db68-repeat").addEventListener(
 
 db69ToggleEndDate();
     
+// DJURDAGBOKEN 6.8 - GEMENSAM DATUMHJÄLP
+
+function db68Today() {
+  const now = new Date();
+
+  return db5Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+}
+
+function db68MoveDate(date, days) {
+  const time =
+    Date.parse(date + "T00:00:00Z");
+
+  return new Date(time + days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+// Räknar ut tillfällen utan att skapa nya databasrader
+function db68Expand(items, from, until, max = Infinity) {
+  const result = [];
+
+  const events = [...items].sort((a, b) =>
+    a.title.localeCompare(b.title, "sv")
+  );
+
+  const startTime = Date.parse(from + "T00:00:00Z");
+  const endTime = Date.parse(until + "T00:00:00Z");
+
+  for (
+    let time = startTime;
+    time <= endTime;
+    time += 86400000
+  ) {
+    const date =
+      new Date(time).toISOString().slice(0, 10);
+
+    for (const item of events) {
+      if (!db68OccursOn(item, date)) continue;
+
+      result.push({
+        ...item,
+        occurrence_date: date
+      });
+
+      if (result.length >= max) return result;
+    }
+  }
+
+  return result;
+}
+    
 function db5Status(text) {
   db5El("db5-status").textContent = text;
 }
@@ -3940,6 +3995,11 @@ async function db5Load() {
     today.getDate()
   );
 
+  const upcomingEnd = db68MoveDate(todayString, 400);
+
+const recurringCutoff =
+  lastDay > upcomingEnd ? lastDay : upcomingEnd;
+
   const eventFields =
   "id, title, event_date, notes, category_id, " +
   "is_checkable, is_done, repeat_rule, repeat_until";
@@ -3976,7 +4036,7 @@ async function db5Load() {
       .eq("pet_id", petId)
       .eq("user_id", userId)
       .neq("repeat_rule", "none")
-      .lte("event_date", lastDay)
+      .lte("event_date", recurringCutoff)
       .order("event_date")
       .limit(1000),
 
@@ -4027,6 +4087,24 @@ async function db5Load() {
   }
 
   const events = [...allEvents.values()];
+  
+// DJURDAGBOKEN - FEM NÄRMASTE TILLFÄLLEN
+
+const upcomingMap = new Map();
+
+for (const item of [
+  ...events,
+  ...(upcomingResult.data || [])
+]) {
+  upcomingMap.set(item.id, item);
+}
+
+const nextFive = db68Expand(
+  [...upcomingMap.values()],
+  todayString,
+  upcomingEnd,
+  5
+);
 
   // Läs separat sparade avbockningar
   const recurringIds = events
@@ -4068,9 +4146,55 @@ async function db5Load() {
     }
   }
 
+// Hämta avbockningar för de fem nästa tillfällena
+
+const nextRecurring = nextFive.filter(item =>
+  item.is_checkable &&
+  (item.repeat_rule || "none") !== "none"
+);
+
+if (nextRecurring.length > 0) {
+
+  const eventIds = [
+    ...new Set(nextRecurring.map(item => item.id))
+  ];
+
+  const lastUpcomingDate =
+    nextRecurring[nextRecurring.length - 1]
+      .occurrence_date;
+
+  const { data, error } = await supabase
+    .from("pet_event_completions")
+    .select("event_id, occurrence_date")
+    .eq("user_id", userId)
+    .in("event_id", eventIds)
+    .gte("occurrence_date", todayString)
+    .lte("occurrence_date", lastUpcomingDate);
+
+  if (
+    request !== db5.requestNumber ||
+    db5.petId !== petId ||
+    shownUserId !== userId
+  ) return;
+
+  if (error) {
+    db5Status(
+      "Kunde inte hämta kommande avbockningar: " +
+      error.message
+    );
+    return;
+  }
+
+  for (const row of data || []) {
+    completions.add(
+      row.event_id + "|" + row.occurrence_date
+    );
+  }
+}
+
   db5.categories = categoryResult.data || [];
   db5.events = events;
-  db5.upcoming = upcomingResult.data || [];
+  db5.upcoming = nextFive;
   db5.completions = completions;
 
   db5Render();
@@ -4630,7 +4754,7 @@ function db52RenderUpcoming() {
     const date = document.createElement("small");
 
     const formattedDate = new Date(
-      item.event_date + "T12:00:00"
+  item.occurrence_date + "T12:00:00"
     ).toLocaleDateString("sv-SE", {
       day: "numeric",
       month: "long",
@@ -4645,10 +4769,31 @@ function db52RenderUpcoming() {
     
 card.append(icon, info);
 
-if (item.is_checkable) {
-  card.append(db63MakeDoneCheckbox(item));
 
-  if (item.is_done) {
+// Visa rätt avbockning för varje tillfälle
+if (item.is_checkable) {
+
+  const recurring =
+    (item.repeat_rule || "none") !== "none";
+
+  const isDone = recurring
+    ? db5.completions.has(
+        item.id + "|" + item.occurrence_date
+      )
+    : Boolean(item.is_done);
+
+  if (recurring) {
+    card.append(
+      db68MakeDoneCheckbox(
+        item,
+        item.occurrence_date
+      )
+    );
+  } else {
+    card.append(db63MakeDoneCheckbox(item));
+  }
+
+  if (isDone) {
     card.classList.add("db63-completed");
   }
 }
@@ -5373,100 +5518,201 @@ db66DoneButton.addEventListener("click", () => {
   db66ShowTab("done");
 });
 
+
+// =============================================
+// DJURDAGBOKEN 6.8
+// ATT GÖRA / AVKLARADE MED UPPREPNINGAR
+// =============================================
+
 async function db65LoadTodos() {
+
   const userId = shownUserId;
   if (!userId) return;
 
   const request = ++db65Request;
+  const tab = db66Tab;
 
-  const list = document.getElementById("db65-todo-list");
-  const countEl = document.getElementById("db65-todo-count");
-  const status = document.getElementById("db65-todo-status");
+  const list =
+    document.getElementById("db65-todo-list");
 
-  status.textContent = "";
+  const countEl =
+    document.getElementById("db65-todo-count");
 
-  // Hämta ofärdiga uppgifter, djur och kategorier
-  const [tasksResult, petsResult, categoriesResult] =
-    await Promise.all([
+  const status =
+    document.getElementById("db65-todo-status");
 
-      supabase
-        .from("pet_events")
-        .select(
-          "id, pet_id, title, event_date, category_id",
-          { count: "exact" }
-        )
-        .eq("user_id", userId)
-        .eq("is_checkable", true)
-        .eq("repeat_rule", "none")
-        .eq("is_done", db66Tab === "done")
-        .order("event_date", { ascending: true })
-        .limit(100),
+  status.textContent = "Hämtar uppgifter...";
 
-      supabase
-        .from("pets")
-        .select("id, name")
-        .eq("user_id", userId),
+  const today = db68Today();
+  const historyStart = db68MoveDate(today, -365);
 
-      supabase
-        .from("pet_categories")
-        .select("id, name, color, icon")
-        .eq("user_id", userId)
+  // Hämta uppgifter, djur och kategorier
+  const [
+    eventsResult,
+    petsResult,
+    categoriesResult
+  ] = await Promise.all([
 
-    ]);
+    supabase
+      .from("pet_events")
+      .select(
+        "id, pet_id, title, event_date, " +
+        "category_id, repeat_rule, repeat_until, is_done"
+      )
+      .eq("user_id", userId)
+      .eq("is_checkable", true)
+      .order("event_date", { ascending: false })
+      .limit(1000),
 
-  // Visa inte gamla resultat efter konto-byte
-  if (
-    shownUserId !== userId ||
-    request !== db65Request
-  ) return;
+    supabase
+      .from("pets")
+      .select("id, name")
+      .eq("user_id", userId),
 
-  const error =
-    tasksResult.error ||
+    supabase
+      .from("pet_categories")
+      .select("id, name, color, icon")
+      .eq("user_id", userId)
+
+  ]);
+
+  // Förhindra att gamla resultat visas vid kontobyte
+  const isCurrent = () =>
+    shownUserId === userId &&
+    request === db65Request &&
+    db66Tab === tab;
+
+  if (!isCurrent()) return;
+
+  const firstError =
+    eventsResult.error ||
     petsResult.error ||
     categoriesResult.error;
 
-  if (error) {
-    status.textContent =
-      "Kunde inte hämta uppgifter: " + error.message;
+  if (firstError) {
+    list.replaceChildren();
     countEl.textContent = "Fel";
+    status.textContent =
+      "Kunde inte hämta uppgifterna: " +
+      firstError.message;
     return;
   }
 
-  const tasks = tasksResult.data || [];
+  const events = eventsResult.data || [];
   const pets = petsResult.data || [];
   const categories = categoriesResult.data || [];
 
-  const total = tasksResult.count ?? tasks.length;
-  
-countEl.textContent =
-  db66Tab === "done"
+  // Hitta återkommande serier
+  const recurring = events.filter(item =>
+    (item.repeat_rule || "none") !== "none"
+  );
+
+  // Läs avbockningar för separata datum
+  const completedDates = new Set();
+
+  if (recurring.length > 0) {
+
+    const ids = recurring.map(item => item.id);
+
+    const { data, error } = await supabase
+      .from("pet_event_completions")
+      .select("event_id, occurrence_date")
+      .eq("user_id", userId)
+      .in("event_id", ids)
+      .gte("occurrence_date", historyStart)
+      .lte("occurrence_date", today)
+      .limit(1000);
+
+    if (!isCurrent()) return;
+
+    if (error) {
+      list.replaceChildren();
+      countEl.textContent = "Fel";
+      status.textContent =
+        "Kunde inte hämta avbockningar: " +
+        error.message;
+      return;
+    }
+
+    for (const row of data || []) {
+      completedDates.add(
+        row.event_id + "|" + row.occurrence_date
+      );
+    }
+  }
+
+  // Vanliga uppgifter: en händelse = ett tillfälle
+  const normalTasks = events
+    .filter(item =>
+      (item.repeat_rule || "none") === "none"
+    )
+    .map(item => ({
+      ...item,
+      occurrence_date: item.event_date,
+      recurring: false,
+      done: Boolean(item.is_done)
+    }));
+
+  // Återkommande uppgifter: ett tillfälle per datum
+  const recurringTasks = db68Expand(
+    recurring,
+    historyStart,
+    today
+  ).map(item => ({
+    ...item,
+    recurring: true,
+    done: completedDates.has(
+      item.id + "|" + item.occurrence_date
+    )
+  }));
+
+  // Slå ihop alla uppgifter
+  const tasks = [
+    ...normalTasks,
+    ...recurringTasks
+  ];
+
+  const showDone = tab === "done";
+
+  const visibleTasks = tasks
+    .filter(item => item.done === showDone)
+    .sort((a, b) =>
+      showDone
+        ? b.occurrence_date.localeCompare(
+            a.occurrence_date
+          )
+        : a.occurrence_date.localeCompare(
+            b.occurrence_date
+          )
+    );
+
+  const total = visibleTasks.length;
+
+  countEl.textContent = showDone
     ? total + " klara"
     : total + " kvar";
 
   list.replaceChildren();
+  status.textContent = "";
 
-  if (tasks.length === 0) {
+  if (total === 0) {
     const empty = document.createElement("p");
-empty.textContent =
-  db66Tab === "done"
-    ? "Inga avklarade uppgifter ännu."
-    : "🎉 Alla uppgifter är klara!";
+
+    empty.textContent = showDone
+      ? "Inga avklarade uppgifter ännu."
+      : "🎉 Alla uppgifter är klara!";
 
     list.append(empty);
     return;
   }
 
-  const now = new Date();
-  const today = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0")
-  ].join("-");
+  // Visa högst 100 uppgifter åt gången
+  for (const task of visibleTasks.slice(0, 100)) {
 
-  // Skapa ett kort för varje ofärdig uppgift
-  for (const task of tasks) {
+    const pet = pets.find(
+      p => p.id === task.pet_id
+    );
 
-    const pet = pets.find(p => p.id === task.pet_id);
     const category = categories.find(
       c => c.id === task.category_id
     );
@@ -5478,21 +5724,20 @@ empty.textContent =
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-
-    // Visa en bock på uppgifter som är klara
-checkbox.checked = db66Tab === "done";
+    checkbox.checked = task.done;
 
     const content = document.createElement("span");
     content.className = "db65-task-content";
 
     const title = document.createElement("strong");
+
     title.textContent =
       (category?.icon || "🐾") + " " + task.title;
 
     const date = document.createElement("small");
 
     const formattedDate = new Date(
-      task.event_date + "T12:00:00"
+      task.occurrence_date + "T12:00:00"
     ).toLocaleDateString("sv-SE", {
       day: "numeric",
       month: "short",
@@ -5503,7 +5748,14 @@ checkbox.checked = db66Tab === "done";
       (pet?.name || "Okänt djur") +
       " · " + formattedDate;
 
-    if (task.event_date < today) {
+    if (task.recurring) {
+      date.append(" · 🔁 Återkommande");
+    }
+
+    if (
+      !task.done &&
+      task.occurrence_date < today
+    ) {
       const overdue = document.createElement("span");
       overdue.className = "db65-overdue";
       overdue.textContent = " · Försenad";
@@ -5513,63 +5765,91 @@ checkbox.checked = db66Tab === "done";
     content.append(title, date);
     label.append(checkbox, content);
 
-    
-// DJURDAGBOKEN 6.6 - BOCKA AV OCH ÅNGRA
+    // Markera en uppgift som klar eller ångra
+    checkbox.addEventListener("change", async () => {
 
-checkbox.addEventListener("change", async () => {
+      const completed = checkbox.checked;
+      checkbox.disabled = true;
 
-  const completed = checkbox.checked;
+      try {
+        let result;
 
-  checkbox.disabled = true;
+        if (task.recurring) {
 
-  try {
-    const { error } = await supabase
-      .from("pet_events")
-      .update({ is_done: completed })
-      .eq("id", task.id)
-      .eq("pet_id", task.pet_id)
-      .eq("user_id", userId)
-      .eq("is_checkable", true)
-      .eq("is_done", !completed)
-      .select("id")
-      .single();
+          // Upprepade händelser sparas per datum
+          if (completed) {
+            result = await supabase
+              .from("pet_event_completions")
+              .insert({
+                event_id: task.id,
+                occurrence_date: task.occurrence_date,
+                user_id: userId
+              });
+          } else {
+            result = await supabase
+              .from("pet_event_completions")
+              .delete()
+              .eq("event_id", task.id)
+              .eq(
+                "occurrence_date",
+                task.occurrence_date
+              )
+              .eq("user_id", userId);
+          }
 
-    if (error) throw error;
+        } else {
 
-    if (shownUserId !== userId) return;
+          // Vanliga händelser använder sitt gamla fält
+          result = await supabase
+            .from("pet_events")
+            .update({ is_done: completed })
+            .eq("id", task.id)
+            .eq("pet_id", task.pet_id)
+            .eq("user_id", userId)
+            .eq("is_checkable", true)
+            .eq("is_done", !completed)
+            .select("id")
+            .single();
+        }
 
-    // Uppdatera listan efter ändringen
-    await db65LoadTodos();
+        if (result.error) throw result.error;
 
-    status.textContent = completed
-      ? "Uppgiften är markerad som klar! ✅"
-      : "Uppgiften är tillbaka i Att göra-listan.";
+        if (shownUserId !== userId) return;
 
-  } catch (error) {
+        await db65LoadTodos();
 
-    // Återställ bocken om något gick fel
-    checkbox.checked = !completed;
+        if (shownUserId === userId) {
+          status.textContent = completed
+            ? "Uppgiften är klar! ✅"
+            : "Avbockningen har ångrats.";
+        }
 
-    status.textContent =
-      "Kunde inte spara: " + error.message;
+      } catch (error) {
+        checkbox.checked = !completed;
 
-  } finally {
-    checkbox.disabled = false;
-  }
+        if (shownUserId === userId) {
+          status.textContent =
+            "Kunde inte spara: " + error.message;
+        }
 
-});
+      } finally {
+        checkbox.disabled = false;
+      }
+    });
 
     list.append(label);
   }
 
-  if (total > tasks.length) {
+  if (total > 100) {
     const more = document.createElement("p");
+
     more.textContent =
-      "Visar de första 100 uppgifterna.";
+      "Visar 100 av " + total + " uppgifter.";
+
     list.append(more);
   }
 }
-    
+
     // Logga in
     authForm.addEventListener("submit", async (event) => {
       event.preventDefault();
