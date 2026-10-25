@@ -1921,6 +1921,19 @@ label {
     padding: 0 12px 16px;
   }
 }
+    
+/* AVSLUTA ÅTERKOMMANDE HÄNDELSE */
+
+.db64-event-actions .db69-stop {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #e5eee7;
+  color: #315f49;
+  font-size: 13px;
+}
 
   </style>
 </head>
@@ -2326,6 +2339,26 @@ label {
   <option value="weekly">Varje vecka</option>
   <option value="monthly">Varje månad</option>
 </select>
+      
+<!-- DJURDAGBOKEN - SLUTDATUM FÖR UPPREPNING -->
+
+<div id="db69-end-wrap" hidden>
+
+  <label for="db69-repeat-until">
+    📅 Slutdatum (frivilligt)
+  </label>
+
+  <input
+    type="date"
+    id="db69-repeat-until"
+  >
+
+  <small>
+    Lämna tomt om händelsen ska
+    fortsätta utan slutdatum.
+  </small>
+
+</div>
       
       <label for="db5-event-category">
         Kategori
@@ -3791,6 +3824,11 @@ function db68OccursOn(item, date) {
   const rule = item.repeat_rule || "none";
 
   if (!start || date < start) return false;
+  
+// Visa aldrig tillfällen efter slutdatumet
+if (item.repeat_until && date > item.repeat_until) {
+  return false;
+}
 
   if (rule === "none") {
     return date === start;
@@ -3827,6 +3865,27 @@ function db68OccursOn(item, date) {
   return false;
 }
 
+    
+// DJURDAGBOKEN - VISA / DÖLJ SLUTDATUM
+
+function db69ToggleEndDate() {
+  const repeat = db5El("db68-repeat").value;
+  const wrap = db5El("db69-end-wrap");
+
+  wrap.hidden = repeat === "none";
+
+  if (repeat === "none") {
+    db5El("db69-repeat-until").value = "";
+  }
+}
+
+db5El("db68-repeat").addEventListener(
+  "change",
+  db69ToggleEndDate
+);
+
+db69ToggleEndDate();
+    
 function db5Status(text) {
   db5El("db5-status").textContent = text;
 }
@@ -3882,8 +3941,8 @@ async function db5Load() {
   );
 
   const eventFields =
-    "id, title, event_date, notes, category_id, " +
-    "is_checkable, is_done, repeat_rule";
+  "id, title, event_date, notes, category_id, " +
+  "is_checkable, is_done, repeat_rule, repeat_until";
 
   const [
     categoryResult,
@@ -4298,6 +4357,27 @@ menuActions.className = "db64-event-actions";
 
 // Lägg de befintliga knapparna i menyn
 menuActions.append(editEvent, deleteEvent);
+    
+// Visa extra alternativ för återkommande händelser
+if ((event.repeat_rule || "none") !== "none") {
+
+  // Förtydliga vad radering innebär
+  deleteEvent.textContent =
+    "🗑️ Radera hela serien";
+
+  const stopSeries = document.createElement("button");
+
+  stopSeries.type = "button";
+  stopSeries.className = "secondary db69-stop";
+  stopSeries.textContent = "⏹ Avsluta upprepningen";
+
+  stopSeries.addEventListener("click", () => {
+    db69StopSeries(event.id);
+  });
+
+  // Lägg stoppknappen före raderingsknappen
+  menuActions.insertBefore(stopSeries, deleteEvent);
+}
 
 eventMenu.append(menuTitle, menuActions);
 
@@ -4426,6 +4506,10 @@ function db51EditEvent(eventId) {
   db5El("db5-event-notes").value = item.notes || "";
   db5El("db68-repeat").value =
   item.repeat_rule || "none";
+  db5El("db69-repeat-until").value =
+  item.repeat_until || "";
+  
+  db69ToggleEndDate();
   db5El("db63-is-checkable").checked =
   Boolean(item.is_checkable);
 
@@ -4447,6 +4531,7 @@ function db51CancelEventEdit() {
   db51EditingEventId = null;
 
   db5El("db5-event-form").reset();
+  db69ToggleEndDate();
 
   db5El("db51-save-event").textContent =
     "Spara händelse";
@@ -4644,6 +4729,85 @@ db5El("db53-toggle-archive")
 
 // ===== DJURDAGBOKEN 5.3: RADERA HÄNDELSE =====
 
+// DJURDAGBOKEN - AVSLUTA ÅTERKOMMANDE SERIE
+
+async function db69StopSeries(eventId) {
+
+  const item = db5.events.find(e => e.id === eventId);
+  const petId = db5.petId;
+  const userId = shownUserId;
+
+  if (!item || !petId || !userId) return;
+
+  if ((item.repeat_rule || "none") === "none") {
+    return;
+  }
+
+  const now = new Date();
+
+  const today = db5Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  // Serien måste ha börjat innan den avslutas
+  if (item.event_date > today) {
+    db5Status(
+      "Serien har inte börjat ännu. " +
+      "Du kan istället radera hela serien."
+    );
+    return;
+  }
+
+  if (item.repeat_until &&
+      item.repeat_until <= today) {
+    db5Status("Upprepningen är redan avslutad.");
+    return;
+  }
+
+  const confirmed = confirm(
+    "Avsluta upprepningen för " + item.title + "?\n\n" +
+    "Inga tillfällen visas efter idag.\n" +
+    "Tidigare händelser och avbockningar sparas."
+  );
+
+  if (!confirmed) return;
+
+  db5Status("Avslutar upprepningen...");
+
+  try {
+    const { error } = await supabase
+      .from("pet_events")
+      .update({ repeat_until: today })
+      .eq("id", eventId)
+      .eq("pet_id", petId)
+      .eq("user_id", userId)
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    if (
+      db5.petId !== petId ||
+      shownUserId !== userId
+    ) return;
+
+    await db5Load();
+
+    db5Status(
+      "Upprepningen har avslutats! " +
+      "Historiken finns kvar. ✅"
+    );
+
+  } catch (error) {
+    db5Status(
+      "Kunde inte avsluta serien: " +
+      error.message
+    );
+  }
+}
+    
 async function db53DeleteEvent(eventId, eventTitle) {
 
   const petId = db5.petId;
@@ -5065,6 +5229,22 @@ const editingId = db51EditingEventId;
 const isCheckable =
   db5El("db63-is-checkable").checked;
 
+
+const repeatRule = db5El("db68-repeat").value;
+
+const repeatUntil =
+  repeatRule === "none"
+    ? null
+    : db5El("db69-repeat-until").value || null;
+
+if (repeatUntil && repeatUntil < date) {
+  db5Status(
+    "Slutdatumet kan inte vara före startdatumet."
+  );
+  button.disabled = false;
+  return;
+}
+      
 const changes = {
   category_id: categoryId,
   title: title,
@@ -5072,7 +5252,8 @@ const changes = {
   notes: notes || null,
 
   // Djurdagboken 6.8 - upprepning
-  repeat_rule: db5El("db68-repeat").value,
+  repeat_rule: repeatRule,
+repeat_until: repeatUntil,
 
   // Om händelsen ska ha en avbockningsruta
   is_checkable: isCheckable,
