@@ -3784,6 +3784,49 @@ function db5Date(y, m, d) {
   ].join("-");
 }
 
+ // DJURDAGBOKEN 6.8 - BERÄKNA UPPREPNING
+
+function db68OccursOn(item, date) {
+  const start = item.event_date;
+  const rule = item.repeat_rule || "none";
+
+  if (!start || date < start) return false;
+
+  if (rule === "none") {
+    return date === start;
+  }
+
+  if (rule === "daily") {
+    return true;
+  }
+
+  if (rule === "weekly") {
+    const startTime = Date.parse(start + "T00:00:00Z");
+    const dateTime = Date.parse(date + "T00:00:00Z");
+
+    const days = Math.round(
+      (dateTime - startTime) / 86400000
+    );
+
+    return days % 7 === 0;
+  }
+
+  if (rule === "monthly") {
+    const startDay = Number(start.slice(8, 10));
+    const year = Number(date.slice(0, 4));
+    const month = Number(date.slice(5, 7)) - 1;
+    const day = Number(date.slice(8, 10));
+
+    const lastDay = new Date(
+      Date.UTC(year, month + 1, 0)
+    ).getUTCDate();
+
+    return day === Math.min(startDay, lastDay);
+  }
+
+  return false;
+}
+
 function db5Status(text) {
   db5El("db5-status").textContent = text;
 }
@@ -3811,10 +3854,13 @@ db51CancelCategoryEdit();
   await db5Load();
 }
 
-// Hämta kategorier och månadens händelser
+
+// DJURDAGBOKEN 6.8 - LADDA KALENDER
+
 async function db5Load() {
   const petId = db5.petId;
   const userId = shownUserId;
+
   if (!petId || !userId) return;
 
   const request = ++db5.requestNumber;
@@ -3823,19 +3869,28 @@ async function db5Load() {
 
   const firstDay = db5Date(year, month, 1);
   const lastDay = db5Date(
-    year, month,
+    year,
+    month,
     new Date(year, month + 1, 0).getDate()
   );
-const today = new Date();
 
-const todayString = db5Date(
-  today.getFullYear(),
-  today.getMonth(),
-  today.getDate()
-);
-  
-const [categoryResult, eventResult, upcomingResult] =
-  await Promise.all([
+  const today = new Date();
+  const todayString = db5Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+
+  const eventFields =
+    "id, title, event_date, notes, category_id, " +
+    "is_checkable, is_done, repeat_rule";
+
+  const [
+    categoryResult,
+    eventResult,
+    recurringResult,
+    upcomingResult
+  ] = await Promise.all([
 
     // Djurets kategorier
     supabase
@@ -3845,51 +3900,119 @@ const [categoryResult, eventResult, upcomingResult] =
       .eq("user_id", userId)
       .order("name"),
 
-    // Händelser för kalenderns aktuella månad
+    // Händelser som börjar under månaden
     supabase
       .from("pet_events")
-      .select("id, title, event_date, notes, category_id, is_checkable, is_done, repeat_rule")
+      .select(eventFields)
       .eq("pet_id", petId)
       .eq("user_id", userId)
       .gte("event_date", firstDay)
       .lte("event_date", lastDay)
       .order("event_date"),
 
-    // Kommande händelser, även i andra månader
+    // Återkommande händelser från tidigare datum
     supabase
       .from("pet_events")
-      .select("id, title, event_date, category_id, is_checkable, is_done")
+      .select(eventFields)
       .eq("pet_id", petId)
       .eq("user_id", userId)
+      .neq("repeat_rule", "none")
+      .lte("event_date", lastDay)
+      .order("event_date")
+      .limit(1000),
+
+    // Vanliga kommande händelser
+    supabase
+      .from("pet_events")
+      .select(
+        "id, title, event_date, category_id, " +
+        "is_checkable, is_done, repeat_rule"
+      )
+      .eq("pet_id", petId)
+      .eq("user_id", userId)
+      .eq("repeat_rule", "none")
       .gte("event_date", todayString)
       .order("event_date", { ascending: true })
       .limit(100)
 
   ]);
 
-
   if (
     request !== db5.requestNumber ||
     db5.petId !== petId ||
     shownUserId !== userId
   ) return;
-  
-    const loadError =
-  categoryResult.error ||
-  eventResult.error ||
-  upcomingResult.error;
 
-if (loadError) {
-  db5Status(
-    "Kunde inte hämta kalendern: " +
-    loadError.message
-  );
-  return;
-}
+  const loadError =
+    categoryResult.error ||
+    eventResult.error ||
+    recurringResult.error ||
+    upcomingResult.error;
 
-  db5.categories = categoryResult.data;
-  db5.events = eventResult.data;
-  db5.upcoming = upcomingResult.data;
+  if (loadError) {
+    db5Status(
+      "Kunde inte hämta kalendern: " +
+      loadError.message
+    );
+    return;
+  }
+
+  // Slå ihop händelser utan dubbletter
+  const allEvents = new Map();
+
+  for (const item of [
+    ...(eventResult.data || []),
+    ...(recurringResult.data || [])
+  ]) {
+    allEvents.set(item.id, item);
+  }
+
+  const events = [...allEvents.values()];
+
+  // Läs separat sparade avbockningar
+  const recurringIds = events
+    .filter(item =>
+      item.repeat_rule !== "none" &&
+      item.is_checkable
+    )
+    .map(item => item.id);
+
+  const completions = new Set();
+
+  if (recurringIds.length > 0) {
+    const completionResult = await supabase
+      .from("pet_event_completions")
+      .select("event_id, occurrence_date")
+      .eq("user_id", userId)
+      .in("event_id", recurringIds)
+      .gte("occurrence_date", firstDay)
+      .lte("occurrence_date", lastDay);
+
+    if (
+      request !== db5.requestNumber ||
+      db5.petId !== petId ||
+      shownUserId !== userId
+    ) return;
+
+    if (completionResult.error) {
+      db5Status(
+        "Kunde inte hämta avbockningar: " +
+        completionResult.error.message
+      );
+      return;
+    }
+
+    for (const row of completionResult.data || []) {
+      completions.add(
+        row.event_id + "|" + row.occurrence_date
+      );
+    }
+  }
+
+  db5.categories = categoryResult.data || [];
+  db5.events = events;
+  db5.upcoming = upcomingResult.data || [];
+  db5.completions = completions;
 
   db5Render();
 }
@@ -3942,10 +4065,10 @@ function db5Render() {
     const dots = document.createElement("div");
     dots.className = "db5-dots";
 
-    const visibleEvents = db5.events.filter(e =>
-      e.event_date === date &&
-      !db5.hiddenCategories.has(e.category_id)
-    );
+const visibleEvents = db5.events.filter(e =>
+  db68OccursOn(e, date) &&
+  !db5.hiddenCategories.has(e.category_id)
+);
 
     const colors = new Set();
 
@@ -4073,10 +4196,10 @@ filters.append(chip);
   const eventList = db5El("db5-events");
   eventList.replaceChildren();
 
-  const matchingEvents = db5.events.filter(e =>
-    e.event_date === db5.selected &&
-    !db5.hiddenCategories.has(e.category_id)
-  );
+const matchingEvents = db5.events.filter(e =>
+  db68OccursOn(e, db5.selected) &&
+  !db5.hiddenCategories.has(e.category_id)
+);
 
   if (matchingEvents.length === 0) {
     const empty = document.createElement("p");
@@ -4109,12 +4232,30 @@ filters.append(chip);
       note.textContent = event.notes;
       card.append(note);
     }
-
-// Visa avbockning om användaren har valt det
+    
+// Avbockning för vanliga och återkommande händelser
 if (event.is_checkable) {
-  card.append(db63MakeDoneCheckbox(event));
 
-  if (event.is_done) {
+  const recurring =
+    (event.repeat_rule || "none") !== "none";
+
+  const isDone = recurring
+    ? db5.completions.has(
+        event.id + "|" + db5.selected
+      )
+    : Boolean(event.is_done);
+
+  if (recurring) {
+    card.append(
+      db68MakeDoneCheckbox(event, db5.selected)
+    );
+  } else {
+    card.append(
+      db63MakeDoneCheckbox(event)
+    );
+  }
+
+  if (isDone) {
     card.classList.add("db63-completed");
   }
 }
@@ -4723,6 +4864,92 @@ function db63MakeDoneCheckbox(item) {
   return label;
 }
 
+    
+// DJURDAGBOKEN 6.8
+// AVBOCKNING AV ETT ÅTERKOMMANDE TILLFÄLLE
+
+function db68MakeDoneCheckbox(item, date) {
+  const label = document.createElement("label");
+  label.className = "db63-checkbox-row db63-status";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+
+  const key = item.id + "|" + date;
+  const isDone = db5.completions.has(key);
+
+  checkbox.checked = isDone;
+
+  const text = document.createElement("span");
+  text.textContent = isDone
+    ? "Klart!"
+    : "Markera som klar";
+
+  label.append(checkbox, text);
+
+  checkbox.addEventListener("change", async () => {
+    const completed = checkbox.checked;
+    const petId = db5.petId;
+    const userId = shownUserId;
+
+    if (!petId || !userId) {
+      checkbox.checked = !completed;
+      return;
+    }
+
+    checkbox.disabled = true;
+
+    try {
+      let result;
+
+      if (completed) {
+        // Spara avbockningen för just detta datum
+        result = await supabase
+          .from("pet_event_completions")
+          .insert({
+            event_id: item.id,
+            occurrence_date: date,
+            user_id: userId
+          });
+      } else {
+        // Ångra avbockningen för just detta datum
+        result = await supabase
+          .from("pet_event_completions")
+          .delete()
+          .eq("event_id", item.id)
+          .eq("occurrence_date", date)
+          .eq("user_id", userId);
+      }
+
+      if (result.error) throw result.error;
+
+      if (
+        db5.petId !== petId ||
+        shownUserId !== userId
+      ) return;
+
+      await db5Load();
+
+      db5Status(
+        completed
+          ? "Tillfället är markerat som klart! ✅"
+          : "Avbockningen har ångrats."
+      );
+
+    } catch (error) {
+      checkbox.checked = !completed;
+      db5Status(
+        "Kunde inte spara avbockningen: " +
+        error.message
+      );
+    } finally {
+      checkbox.disabled = false;
+    }
+  });
+
+  return label;
+}
+
 // Föregående månad
 db5El("db5-prev").addEventListener("click", () => {
   db5.month = new Date(
@@ -4989,6 +5216,7 @@ async function db65LoadTodos() {
         )
         .eq("user_id", userId)
         .eq("is_checkable", true)
+        .eq("repeat_rule", "none")
         .eq("is_done", db66Tab === "done")
         .order("event_date", { ascending: true })
         .limit(100),
