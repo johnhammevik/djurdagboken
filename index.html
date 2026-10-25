@@ -2383,6 +2383,36 @@ label {
     transition: none;
   }
 }
+    
+/* DJURDAGBOKEN 7.0 - LITET KALENDERFILTER */
+
+#db5-calendar .db70-filters {
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0 12px;
+  padding: 0;
+  border: 1px solid #e1e9df;
+  border-radius: 10px;
+  background: #fafbf8;
+}
+
+#db5-calendar .db70-filters > summary {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #607768;
+}
+
+/* Lite större när filtret öppnas */
+
+#db5-calendar .db70-filters[open] {
+  width: min(100%, 280px);
+}
+
+#db5-calendar .db70-filters .db5-filters {
+  margin-top: 0;
+  padding: 8px 12px 12px;
+}
 
   </style>
 </head>
@@ -2691,7 +2721,7 @@ label {
 <!-- Utfällbart kategorifilter -->
 <details class="db5-details db70-filters">
 
-  <summary>🎨 Filtrera kalendern</summary>
+  <summary>🎨 Filtrera</summary>
 
   <div id="db5-filters" class="db5-filters"></div>
 
