@@ -3581,6 +3581,14 @@ const db61EditPanel =
   document.getElementById("db61-edit-panel");
 
 db61EditPanel.append(profileForm);
+    
+ // DJURDAGBOKEN - FLYTTA REDIGERING TILL KALENDERPANELEN
+
+db61EditPanel.classList.remove("db61-edit-panel");
+db61EditPanel.classList.add("db5-details");
+
+document.getElementById("db5-calendar")
+  .append(db61EditPanel);
 
 // Ta bort den gamla rubriken längst ner
 const db61OldHeading =
