@@ -2107,6 +2107,37 @@ label {
   }
 }
 
+    
+/* VIKTSEKTION INUTI KALENDERPANELEN */
+
+#db5-calendar #db67-panel {
+  margin: 14px 0 0;
+  padding: 18px;
+  background: #fbfcf9;
+  border: 1px solid #dfe8df;
+  border-radius: 16px;
+  overflow: visible;
+}
+
+#db5-calendar #db67-panel > summary {
+  padding: 0;
+  font-size: inherit;
+  color: #285c43;
+}
+
+#db5-calendar #db67-panel > summary::after {
+  content: none;
+}
+
+#db5-calendar #db67-panel > summary::before {
+  content: "▸";
+  margin-right: 8px;
+}
+
+#db5-calendar #db67-panel[open] > summary::before {
+  content: "▾";
+}
+
   </style>
 </head>
 
@@ -2634,12 +2665,9 @@ label {
   <p id="db5-status" role="status"
      aria-live="polite"></p>
 
-</section>
-
-  
 <!-- DJURDAGBOKEN 6.7 - VIKTREGISTRERING -->
 
-<details id="db67-panel">
+<details id="db67-panel" class="db5-details">
 
   <summary>⚖️ Vikt & utveckling</summary>
 
@@ -2717,6 +2745,7 @@ label {
   </div>
 
 </details>
+  </section>
   
   <h3>Om mitt djur</h3>
 
