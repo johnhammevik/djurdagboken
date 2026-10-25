@@ -2314,6 +2314,19 @@ label {
         required
       >
 
+<!-- DJURDAGBOKEN 6.8 - UPPREPNING -->
+
+<label for="db68-repeat">
+  🔁 Upprepa händelsen
+</label>
+
+<select id="db68-repeat">
+  <option value="none">Upprepas inte</option>
+  <option value="daily">Varje dag</option>
+  <option value="weekly">Varje vecka</option>
+  <option value="monthly">Varje månad</option>
+</select>
+      
       <label for="db5-event-category">
         Kategori
       </label>
@@ -3835,7 +3848,7 @@ const [categoryResult, eventResult, upcomingResult] =
     // Händelser för kalenderns aktuella månad
     supabase
       .from("pet_events")
-      .select("id, title, event_date, notes, category_id, is_checkable, is_done")
+      .select("id, title, event_date, notes, category_id, is_checkable, is_done, repeat_rule")
       .eq("pet_id", petId)
       .eq("user_id", userId)
       .gte("event_date", firstDay)
@@ -4270,6 +4283,8 @@ function db51EditEvent(eventId) {
   db5El("db5-event-date").value = item.event_date;
   db5El("db5-event-category").value = item.category_id;
   db5El("db5-event-notes").value = item.notes || "";
+  db5El("db68-repeat").value =
+  item.repeat_rule || "none";
   db5El("db63-is-checkable").checked =
   Boolean(item.is_checkable);
 
@@ -4828,6 +4843,9 @@ const changes = {
   title: title,
   event_date: date,
   notes: notes || null,
+
+  // Djurdagboken 6.8 - upprepning
+  repeat_rule: db5El("db68-repeat").value,
 
   // Om händelsen ska ha en avbockningsruta
   is_checkable: isCheckable,
